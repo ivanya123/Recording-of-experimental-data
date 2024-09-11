@@ -1,0 +1,25 @@
+{
+    "material": [
+        "\u0412\u042218\u0423",
+        "\u0412\u042241",
+        "\u0425\u041d50\u041c\u0412\u041a\u0422\u042e\u0420",
+        "\u0425\u041d58\u041c\u0411\u042e\u0414-\u0418\u0414"
+    ],
+    "coating": [
+        "AlTiCrN3+TiB2",
+        "AlTiCrN3+TiB2",
+        "AlTiN3",
+        "AlTiN3+TiB2",
+        "AlTiNCrN3",
+        "TiB2",
+        "nACRo",
+        "nACRo+TiB2",
+        "nACo3",
+        "nACo3+TiB2",
+        "Uncoating"
+    ],
+    "tool": [
+        "\u0424\u0440\u0435\u0437\u0430 12",
+        "\u0424\u0440\u0435\u0437\u0430 20"
+    ]
+}
