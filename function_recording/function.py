@@ -11,11 +11,11 @@ def plus(event, spinbox, step=1, func = None):
         if event.delta < 0:
             num = float(spinbox.get())
             spinbox.delete(0, len(spinbox.get()))
-            spinbox.insert(0, round((num - step), 2))
+            spinbox.insert(0, round((num - step), 3))
         else:
             num = float(spinbox.get())
             spinbox.delete(0, len(spinbox.get()))
-            spinbox.insert(0, round((num + step), 2))
+            spinbox.insert(0, round((num + step), 3))
 
     if func is not None:
         func()

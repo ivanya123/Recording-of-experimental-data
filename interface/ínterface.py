@@ -3,9 +3,8 @@ from tkinter import filedialog
 from tkinter import ttk
 from tkinter import messagebox
 import os
-import json
 from matplotlib.backends.backend_tkagg import (
-    FigureCanvasTkAgg, NavigationToolbar2Tk)
+    FigureCanvasTkAgg)
 import matplotlib.pyplot as plt
 
 from data_constant import *
@@ -70,7 +69,7 @@ class Main(tk.Tk):
         self.text_a.insert(0, '5')
         self.text_a.pack(padx=5, pady=5)
 
-        self.text_b = tk.Entry(self.frame_section, textvariable='1.5')
+        self.text_b = tk.Entry(self.frame_section)
         self.text_b.insert(0, '1.5')
         self.text_b.pack(padx=5, pady=5)
 
@@ -104,17 +103,19 @@ class Main(tk.Tk):
 class NewExperiment(tk.Toplevel):
 
     def add_point_(self):
-        self.frame_point = tk.LabelFrame(self.inner_frame, text=f"{self.count_point + 1}")
+        self.frame_point = tk.LabelFrame(self.inner_frame, text=f"{self.count_point + 1}", width=10)
         self.frame_point.grid(row=0, column=self.count_point + 1, padx=5, pady=5)
 
         self.new_spin = Spinner(self.frame_point,
                                 default=self.list_point[self.count_point - 1][0].get() if self.list_point else '1')
         self.new_spin.pack(padx=5, pady=5)
+        self.new_spin.bind('<Return>', lambda e: self.graphik())
 
-        self.new_entry = Entry_wear(self.frame_point, 0.01,
+        self.new_entry = Entry_wear(self.frame_point, 0.002,
                                     default=self.list_point[self.count_point - 1][
                                         1].get() if self.list_point else '0.05')
         self.new_entry.pack(padx=5, pady=5)
+        self.new_entry.bind('<Return>', lambda e: self.graphik())
 
         self.list_point.append((self.new_spin, self.new_entry))
 
@@ -125,7 +126,6 @@ class NewExperiment(tk.Toplevel):
     def graphik(self):
         self.experiment.table = self.experiment.table.drop(index=list(range(self.count_point + 1)))
         self.experiment.table.loc[0] = [0, 0, 0]
-        # print(self.experiment.table)
         for point in self.list_point:
             self.experiment.add_point(float(point[0].get()), float(point[1].get()))
 
@@ -160,7 +160,6 @@ class NewExperiment(tk.Toplevel):
         self.b = b
         self.text_title = (f"Материал: {material}, Покрытие: {coating}, Инструмент: {tool}\n"
                            f"Длина заготовки: {length_piece} мм, Сечение(axb): {a}мм x {b}мм")
-
 
         self.canvas_point = tk.Canvas(self, width=1000, height=100)
         self.scrollbar = tk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas_point.xview)
@@ -197,7 +196,7 @@ class NewExperiment(tk.Toplevel):
 
 
 class Spinner(tk.Spinbox):
-    def __init__(self, master=None, step_=1, default=1, **kwargs):
+    def __init__(self, master=None, step_: int | float = 1, default: str = "1", **kwargs):
         super().__init__(master, **kwargs)
         self.bind('<MouseWheel>', lambda event, step=step_: plus(event, self, func=master.master.master.master.graphik))
         self.insert(0, default)
@@ -205,7 +204,7 @@ class Spinner(tk.Spinbox):
 
 class Entry_wear(tk.Entry):
 
-    def __init__(self, master=None, step_=1, default='0.05', **kwargs):
+    def __init__(self, master=None, step_: int | float = 1, default='0.05', **kwargs):
         super().__init__(master, **kwargs)
         self.bind('<MouseWheel>',
                   lambda event, step=step_: plus(event, self, step, master.master.master.master.graphik))
