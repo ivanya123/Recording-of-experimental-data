@@ -4,9 +4,13 @@ from tkinter import ttk
 from tkinter import messagebox
 import os
 import json
+from matplotlib.backends.backend_tkagg import (
+    FigureCanvasTkAgg, NavigationToolbar2Tk)
+import matplotlib.pyplot as plt
 
 from data_constant import *
 from function_recording.function import *
+from function_recording.experiment import Experiment
 
 
 def first_start():
@@ -99,6 +103,37 @@ class Main(tk.Tk):
 
 class NewExperiment(tk.Toplevel):
 
+    def add_point_(self):
+        self.frame_point = tk.LabelFrame(self.canvas_point, text=f"{self.count_point + 1}")
+        self.frame_point.grid(row=0, column=self.count_point + 1, padx=5, pady=5)
+
+        self.new_spin = Spinner(self.frame_point)
+        self.new_spin.pack(padx=5, pady=5)
+
+        self.new_entry = Entry_wear(self.frame_point, 0.01)
+        self.new_entry.pack(padx=5, pady=5)
+
+        self.list_point.append((self.new_spin, self.new_entry))
+
+        self.graphik()
+        self.count_point += 1
+
+    def graphik(self):
+        self.experiment.table = self.experiment.table.drop(index=list(range(self.count_point + 1)))
+        self.experiment.table.loc[0] = [0, 0, 0]
+        # print(self.experiment.table)
+        for point in self.list_point[:-1]:
+            self.experiment.add_point(float(point[0].get()), float(point[1].get()))
+
+        fig, ax = self.experiment.graphik()
+        if self.canvas_graph:
+            self.canvas_graph.get_tk_widget().destroy()
+        self.canvas_graph = FigureCanvasTkAgg(fig, master=self)
+        self.canvas_graph.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.canvas_graph.draw()
+
+        plt.close()
+
     def __init__(self,
                  material: str,
                  coating: str,
@@ -107,8 +142,11 @@ class NewExperiment(tk.Toplevel):
                  a: float,
                  b: float):
         super().__init__()
-        self.geometry("500x500")
+        self.canvas_graph = None
+        self.geometry("1000x500")
         self.title("Запись данных об износе")
+        self.count_point = 0
+        self.list_point: list[tuple[tk.Spinbox, tk.Entry]] = []
 
         self.material = material
         self.coating = coating
@@ -119,36 +157,59 @@ class NewExperiment(tk.Toplevel):
         self.text_title = (f"Материал: {material}, Покрытие: {coating}, Инструмент: {tool}\n"
                            f"Длина заготовки: {length_piece} мм, Сечение(axb): {a}мм x {b}мм")
 
+        self.canvas_point = tk.Canvas(self, width=1000, height=200)
+        self.canvas_point.pack(padx=5, pady=5)
+        self.frame_point = tk.LabelFrame(self.canvas_point, text="0")
+        self.frame_point.grid(row=0, column=0, padx=5, pady=5)
+
         self.label_title = tk.Label(self, text=self.text_title)
         self.label_title.pack(padx=5, pady=5)
-
-        self.frame_experimen = tk.LabelFrame(self, text="Количество проходов")
-        self.frame_experimen.pack(padx=5, pady=5)
-        self.spin_passage = tk.Spinbox(self.frame_experimen, from_=1, to=140, width=10)
-        self.spin_passage.grid(row=0, column=0, padx=5, pady=5)
+        self.button_add_point = tk.Button(self, text="Добавить точку", command=self.add_point_)
+        self.button_add_point.pack(padx=5, pady=5, anchor='w')
+        # self.frame_experiment = tk.LabelFrame(self.canvas_point, text="Проход")
+        # self.frame_experiment.pack(padx=5, pady=5, anchor='w')
+        self.spin_passage = tk.Spinbox(self.frame_point, from_=1, to=140)
+        self.spin_passage.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
         self.spin_passage.bind('<MouseWheel>', lambda event: plus(event, self.spin_passage))
-        self.spin_passage['state'] = 'readonly'
+        self.spin_passage.index = 0
 
-        def plus(event, spinbox):
-            if event.delta < 0:
-                spinbox['state'] = 'normal'
-                num = int(spinbox.get())
-                spinbox.delete(0, len(spinbox.get()))
-                if num > 1:
-                    spinbox.insert(0, num - 1)
-                    spinbox['state'] ='readonly'
-                else:
-                    spinbox.insert(0, num)
-                    spinbox['state'] = 'readonly'
+        # self.frame_wear = tk.LabelFrame(self.canvas_point, text="Износ(мкм)")
+        # self.frame_wear.pack(padx=5, pady=5, anchor='w')
+        self.spin_wear = tk.Entry(self.frame_point)
+        self.spin_wear.insert(0, '0.05')
+        self.spin_wear.grid(row=1, column=0, padx=5, pady=5, sticky='ew')
+        self.spin_wear.bind('<MouseWheel>', lambda event, step=0.01: plus(event, self.spin_wear, step))
+        self.spin_wear.index = 0
 
-            else:
-                spinbox['state'] = 'normal'
-                num = int(spinbox.get())
-                spinbox.delete(0, len(spinbox.get()))
-                spinbox.insert(0, num + 1)
-                spinbox['state'] = 'readonly'
+        self.list_point.append((self.spin_passage, self.spin_wear))
 
-        self.frame_wear = tk.LabelFrame(self, text="Величина износа (мкм)")
+        self.experiment = Experiment(self.material, self.coating, self.tool, 2000, 200,
+                                     self.a, self.b, self.length_piece)
+
+    def destroy(self):
+        if self.canvas_graph:
+            self.canvas_graph.get_tk_widget().destroy()
+        super().destroy()
+
+
+class Spinner(tk.Spinbox):
+    def __init__(self, master=None, step_=1, **kwargs):
+        super().__init__(master, **kwargs)
+        self.bind('<MouseWheel>', lambda event, step=step_: plus(event, self, func=master.master.master.graphik))
+        self.insert(0, '1')
+
+
+class Entry_wear(tk.Entry):
+
+    def __init__(self, master=None, step_=1, **kwargs):
+        super().__init__(master, **kwargs)
+        self.bind('<MouseWheel>', lambda event, step=step_: plus(event, self, step, master.master.master.graphik))
+        self.insert(0, '0.05')
+
+
+class Point_frame(tk.LabelFrame):
+    def __init__(self, master=None, **kwargs):
+        super().__init__(master, **kwargs)
 
 
 if __name__ == '__main__':
