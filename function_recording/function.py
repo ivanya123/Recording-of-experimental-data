@@ -20,4 +20,13 @@ def plus(event, spinbox, step=1, func = None):
     if func is not None:
         func()
 
+def on_mouse_wheel(event, canvas):
+    if event.delta:
+        canvas.xview_scroll(-1 * int(event.delta / 120), "units")
+    else:
+        if event.num == 4:
+            canvas.xview_scroll(-1, "units")
+        elif event.num == 5:
+            canvas.xview_scroll(1, "units")
+
 
