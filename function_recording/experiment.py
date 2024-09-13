@@ -25,6 +25,9 @@ class Experiment:
         time_processing = length_processing * self.s
         self.table.loc[len(self.table)] = [length_processing, time_processing, wear]
 
+    def save_table(self, path: str) -> bool:
+        pass
+
     def change_point(self, index, n_step, wear):
         length_processing = self.length_piece * n_step
         time_processing = length_processing * self.s
@@ -34,16 +37,20 @@ class Experiment:
         self.table.drop(index, inplace=True)
         self.table.reset_index(drop=True, inplace=True)
 
-
     def graphik(self):
         x = self.table["Величина обработки"]
         y = self.table["Величина износа"]
         fig, ax = plt.subplots()
         ax.plot(x, y, marker="o")
+        # Добавление номеров точек рядом с каждой
+        for i, (x_val, y_val) in enumerate(zip(x, y), start=0):
+            ax.text(x_val, y_val, str(i), fontsize=12, ha='right', va='bottom')  # Номер точки
+
         ax.grid()
         ax.set_xlabel("Величина обработки")
         ax.set_ylabel("Величина износа")
         return fig, ax
+
 
 if __name__ == '__main__':
     experiment = Experiment(

@@ -24,6 +24,17 @@ tool_data = [
     "Фреза 20"
 ]
 
+stage_data = [
+    "Этап 1",
+    "Этап 2",
+    "Этап 3",
+    "Этап 4",
+    "Этап 5",
+    "Этап 6",
+    "Этап 7",
+    "Этап 8",
+    "Этап 9"
+]
 
 import json
 
@@ -57,12 +68,27 @@ def delete_coating(coating, file_name):
         with open(file_name, 'w') as file:
             json.dump(data, file, indent=4)
 
+def delete_stage(stage, file_name):
+    with open(file_name, 'r') as file:
+        data = json.load(file)
+        data['stage'].remove(stage)
+        with open(file_name, 'w') as file:
+            json.dump(data, file, indent=4)
+
 def add_tool(tool, file_name):
     with open(file_name, 'r') as file:
         data = json.load(file)
         data['tool'].append(tool)
         with open(file_name, 'w') as file:
             json.dump(data, file, indent=4)
+
+def add_stage(stage, file_name):
+    with open(file_name, 'r') as file:
+        data = json.load(file)
+        data['stage'].append(stage)
+        with open(file_name, 'w') as file:
+            json.dump(data, file, indent=4)
+
 
 def get_material(file_name):
     with open(file_name, 'r') as file:
@@ -80,11 +106,20 @@ def get_tool(file_name):
     return data['tool']
 
 
+def get_stage(file_name):
+    with open(file_name, 'r') as file:
+        data = json.load(file)
+    return data['stage']
+
+
+
+
 if __name__ == '__main__':
     with open('data_constant.json', 'w') as file:
         dict_data = {
             'material': material_data,
             'coating': coating_data,
-            "tool": tool_data
+            "tool": tool_data,
+            "stage": stage_data
         }
         json.dump(dict_data, file, indent=4)

@@ -3,6 +3,7 @@ from tkinter import filedialog
 from tkinter import ttk
 from tkinter import messagebox
 import os
+import shelve
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg)
 import matplotlib.pyplot as plt
@@ -16,12 +17,13 @@ def first_start():
     if os.path.exists('config.json'):
         with open('config.json', 'r') as f:
             file_path = json.load(f)
-            return file_path['path']
+            return file_path['path'], file_path['save']
     else:
-        file_path = {'path': filedialog.askopenfilename()}
+        file_path = {'path': filedialog.askopenfilename(title='Выберать файл констант'),
+                     'save': filedialog.askdirectory(title="Выберать папку для сохранения данных")}
         with open('config.json', 'w') as f:
             json.dump(file_path, f)
-        return file_path['path']
+        return file_path['path'], file_path['save']
 
 
 class Main(tk.Tk):
@@ -30,13 +32,14 @@ class Main(tk.Tk):
         super().__init__()
 
         self.title("Запись данных об износе")
-        self.geometry("500x500")
+        self.geometry("500x600")
 
-        self.file_data = first_start()
+        self.file_data, self.dir_save = first_start()
 
         self.list_material = get_material(self.file_data)
         self.list_coating = get_coating(self.file_data)
         self.list_tool = get_tool(self.file_data)
+        self.list_stage = get_stage(self.file_data)
 
         self.frame_material = tk.LabelFrame(self, text="Материал")
         self.frame_material.pack(padx=5, pady=5)
@@ -62,6 +65,14 @@ class Main(tk.Tk):
         self.tool_add = tk.Button(self.frame_tool, text="Добавить инструмент")
         self.tool_add.grid(row=0, column=1, padx=5, pady=5)
 
+        self.frame_stage = tk.LabelFrame(self, text="Этап")
+        self.frame_stage.pack(padx=5, pady=5)
+        self.listbox_stage = ttk.Combobox(self.frame_stage, values=self.list_stage)
+        self.listbox_stage.set(self.list_stage[5])
+        self.listbox_stage.grid(row=0, column=0, padx=5, pady=5)
+        self.stage_add = tk.Button(self.frame_stage, text="Добавить этап")
+        self.stage_add.grid(row=0, column=1, padx=5, pady=5)
+
         self.frame_section = tk.LabelFrame(self, text="Сечение")
         self.frame_section.pack(padx=5, pady=5)
 
@@ -79,9 +90,26 @@ class Main(tk.Tk):
         self.entry_piece = tk.Entry(self.frame_piece)
         self.entry_piece.pack(padx=5, pady=5)
 
+        self.frame_processing_modes = tk.LabelFrame(self, text="Режимы обработки")
+        self.frame_processing_modes.pack(padx=5, pady=5)
+
+        self.spinner_n = tk.Spinbox(self.frame_processing_modes, from_=80, to=5000, width=9)
+        self.spinner_n.delete(0, len(self.spinner_n.get()))
+        self.spinner_n.insert(0, '2000')
+        self.spinner_n.pack(padx=5, pady=5)
+        self.spinner_n.bind('<MouseWheel>', lambda e, spin=self.spinner_n: plus(e, spin))
+
+        self.spinner_s = tk.Spinbox(self.frame_processing_modes, from_=5, to=400, width=9)
+        self.spinner_s.delete(0, len(self.spinner_n.get()))
+        self.spinner_s.insert(0, '200')
+        self.spinner_s.pack(padx=5, pady=5)
+        self.spinner_s.bind('<MouseWheel>', lambda e, spin=self.spinner_s: plus(e, spin))
+
         self.button_new_experiment = tk.Button(self, text="Начать запись нового эксперимента",
                                                command=self.on_click)
         self.button_new_experiment.pack(padx=5, pady=5)
+        self.button_view_experiment = tk.Button(self, text="Просмотр экспериментов", command=self.view_button)
+        self.button_view_experiment.pack(padx=5, pady=5)
 
         self.entry_piece.focus()
 
@@ -89,15 +117,23 @@ class Main(tk.Tk):
         material = self.listbox_material.get()
         coating = self.listbox_coating.get()
         tool = self.listbox_tool.get()
+        stage = self.listbox_stage.get()
 
-        if check_float(self.entry_piece.get()) and check_float(self.text_a.get()) and check_float(self.text_b.get()):
+        if (check_float(self.entry_piece.get()) and check_float(self.text_a.get()) and check_float(self.text_b.get())
+                and check_float(self.spinner_n.get()) and check_float(self.spinner_s.get())):
             length_piece = float(self.entry_piece.get())
             a = float(self.text_a.get())
             b = float(self.text_b.get())
-            window = NewExperiment(material, coating, tool, length_piece, a, b)
+            n = float(self.spinner_n.get())
+            s = float(self.spinner_s.get())
+            window = NewExperiment(material, coating, tool, length_piece, a, b, n, s, self.dir_save, stage)
             window.grab_set()
         else:
             messagebox.showerror("Ошибка", "Введите корректные данные")
+
+    def view_button(self):
+        app = ViewExperiment(self.dir_save)
+        app.grab_set()
 
 
 class NewExperiment(tk.Toplevel):
@@ -105,9 +141,14 @@ class NewExperiment(tk.Toplevel):
     def add_point_(self):
         self.frame_point = tk.LabelFrame(self.inner_frame, text=f"{self.count_point + 1}", width=10)
         self.frame_point.grid(row=0, column=self.count_point + 1, padx=5, pady=5)
+        self.frame_point.bind("<Enter>", lambda e, lab=self.frame_point: enter(e, lab))
+        self.frame_point.bind("<Leave>", lambda e, lab=self.frame_point: leave(e, lab))
+        self.frame_point.bind("<Control-ButtonPress-3>", lambda e, lab=self.frame_point: self.delete_point_(lab))
+        self.frame_point.bind('<MouseWheel>', lambda event: on_mouse_wheel(event, self.canvas_point))
+        self.frame_point.index = self.count_point
 
         self.new_spin = Spinner(self.frame_point,
-                                default=self.list_point[self.count_point - 1][0].get() if self.list_point else '1')
+                                default=self.list_point[self.count_point - 1][0].get() if self.list_point else '4')
         self.new_spin.pack(padx=5, pady=5)
         self.new_spin.bind('<Return>', lambda e: self.graphik())
 
@@ -138,13 +179,28 @@ class NewExperiment(tk.Toplevel):
 
         plt.close()
 
+    def delete_point_(self, frame_point: tk.LabelFrame) -> None:
+        frame_point.destroy()
+        del self.list_point[frame_point.index]
+
+        for index, point in enumerate(self.list_point):
+            point[0].master.index = index
+            point[0].master['text'] = str(index + 1)
+
+        self.graphik()
+        self.count_point -= 1
+
     def __init__(self,
                  material: str,
                  coating: str,
                  tool: str,
                  length_piece: float,
                  a: float,
-                 b: float):
+                 b: float,
+                 n: float,
+                 s: float,
+                 dir_save: str,
+                 stage: str):
         super().__init__()
         self.canvas_graph = None
         self.geometry("1000x500")
@@ -158,8 +214,13 @@ class NewExperiment(tk.Toplevel):
         self.length_piece = length_piece
         self.a = a
         self.b = b
-        self.text_title = (f"Материал: {material}, Покрытие: {coating}, Инструмент: {tool}\n"
-                           f"Длина заготовки: {length_piece} мм, Сечение(axb): {a}мм x {b}мм")
+        self.n = n
+        self.s = s
+        self.dir_save = dir_save
+        self.stage = stage
+        self.text_title = (f"Материал: {material}, Покрытие: {coating}, Инструмент: {tool} Этап: {stage}\n"
+                           f"Длина заготовки: {length_piece} мм, Сечение(axb): {a}мм x {b}мм\n"
+                           f"Режимы резания: {n=}об/мин, {s=} мм/мин")
 
         self.canvas_point = tk.Canvas(self, width=1000, height=100)
         self.scrollbar = tk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas_point.xview)
@@ -181,13 +242,25 @@ class NewExperiment(tk.Toplevel):
         self.frame_point = tk.LabelFrame(self.inner_frame, text="0")
         self.frame_point.grid(row=0, column=0, padx=5, pady=5)
 
-        self.label_title = tk.Label(self, text=self.text_title)
+        self.label_title = tk.Label(self, text=self.text_title, font=tk.font.Font(size=12),
+                                    )
         self.label_title.pack(padx=5, pady=5)
-        self.button_add_point = tk.Button(self, text="Добавить точку", command=self.add_point_)
-        self.button_add_point.pack(padx=5, pady=5, anchor='w')
 
-        self.experiment = Experiment(self.material, self.coating, self.tool, 2000, 200,
+        self.frame_buttons = tk.Frame(self)
+        self.frame_buttons.pack(padx=5, pady=5)
+        self.button_add_point = tk.Button(self.frame_buttons, text="Добавить точку", command=self.add_point_)
+        self.button_add_point.grid(row=0, column=0, padx=5, pady=5)
+        self.button_save_table = tk.Button(self.frame_buttons, text="Сохранить", command=self.save_experiment)
+        self.button_save_table.grid(row=0, column=1, padx=5, pady=5)
+
+        self.experiment = Experiment(self.material, self.coating, self.tool, self.n, self.s,
                                      self.a, self.b, self.length_piece)
+    def save_experiment(self):
+        data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
+        key = int(list(data.keys())[-1]) + 1 if list(data.keys()) else 0
+        data[str(key)] = self.experiment
+        data.close()
+        self.destroy()
 
     def destroy(self):
         if self.canvas_graph:
@@ -196,7 +269,7 @@ class NewExperiment(tk.Toplevel):
 
 
 class Spinner(tk.Spinbox):
-    def __init__(self, master=None, step_: int | float = 1, default: str = "1", **kwargs):
+    def __init__(self, master=None, step_: int | float = 1, default: str = "4", **kwargs):
         super().__init__(master, **kwargs)
         self.bind('<MouseWheel>', lambda event, step=step_: plus(event, self, func=master.master.master.master.graphik))
         self.insert(0, default)
@@ -209,6 +282,30 @@ class Entry_wear(tk.Entry):
         self.bind('<MouseWheel>',
                   lambda event, step=step_: plus(event, self, step, master.master.master.master.graphik))
         self.insert(0, default)
+
+
+class ViewExperiment(tk.Toplevel):
+    def __init__(self, dir_save: str):
+        super().__init__()
+        self.geometry("1000x500")
+        self.title("Данные об износе.")
+        self.dir_save = dir_save
+
+        self.listbox_experiment = tk.Listbox(self, selectmode=tk.EXTENDED)
+        self.listbox_experiment.pack(padx=5, pady=5)
+        self.experiment()
+
+    def experiment(self):
+        data: dict[str, Experiment] = shelve.open(os.path.join(self.dir_save, "experiment.db"))
+        max_len = 0
+        for key, value in data.items():
+            text = f"{key}: {value.material}; {value.coating}; {value.tool}; {value.n}; {value.s}; {value.a}; {value.b}; {value.length_piece}"
+            self.listbox_experiment.insert(tk.END, text)
+            max_len = max(max_len, len(text))
+        data.close()
+        self.listbox_experiment.config(width=max_len)
+
+
 
 
 if __name__ == '__main__':

@@ -1,3 +1,6 @@
+import tkinter as tk
+
+
 def check_float(string: str):
     try:
         float(string)
@@ -6,7 +9,7 @@ def check_float(string: str):
         return False
 
 
-def plus(event, spinbox, step=1, func = None):
+def plus(event, spinbox, step=1, func=None):
     if check_float(spinbox.get()):
         if event.delta < 0:
             num = float(spinbox.get())
@@ -20,6 +23,7 @@ def plus(event, spinbox, step=1, func = None):
     if func is not None:
         func()
 
+
 def on_mouse_wheel(event, canvas):
     if event.delta:
         canvas.xview_scroll(-1 * int(event.delta / 120), "units")
@@ -30,3 +34,16 @@ def on_mouse_wheel(event, canvas):
             canvas.xview_scroll(1, "units")
 
 
+def enter(event: str, label: tk.LabelFrame) -> None:
+    scroll_pos = label.master.master.xview()
+
+    label.config(bg="lightblue")
+    label.update_idletasks()
+    label.master.master.xview_moveto(scroll_pos[0])
+
+def leave(event: str, label: tk.LabelFrame) -> None:
+    scroll_pos = label.master.master.xview()
+
+    label.config(bg="SystemButtonFace")
+    label.update_idletasks()
+    label.master.master.xview_moveto(scroll_pos[0])
