@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 class Experiment:
 
-    def __init__(self, material, coating, tool, n, s, a, b, length_piece):
+    def __init__(self, material, coating, tool, n, s, a, b, length_piece, stage):
         self.material = material
         self.coating = coating
         self.tool = tool
@@ -14,6 +14,7 @@ class Experiment:
         self.a = a
         self.b = b
         self.length_piece = length_piece
+        self.stage = stage
         self.table = pd.DataFrame(
             {"Величина обработки": [0],
              "Время обработки": [0],
