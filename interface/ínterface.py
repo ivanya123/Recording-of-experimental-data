@@ -7,6 +7,7 @@ from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg)
 import matplotlib.pyplot as plt
 import pandas as pd
+from IPython.display import display
 
 from data_constant import *
 from function_recording.function import *
@@ -164,13 +165,14 @@ class NewExperiment(tk.Toplevel):
         self.canvas_point.configure(scrollregion=self.canvas_point.bbox("all"))
         self.count_point += 1
 
-    def graphik(self):
+    def graphik(self, event = None):
         self.experiment.table = self.experiment.table.drop(index=list(range(self.count_point + 1)))
         self.experiment.table.loc[0] = [0, 0, 0]
         for point in self.list_point:
             self.experiment.add_point(float(point[0].get()), float(point[1].get()))
 
         fig, ax = self.experiment.graphik()
+        ax.axhline(0.3)
         if self.canvas_graph:
             self.canvas_graph.get_tk_widget().destroy()
         self.canvas_graph = FigureCanvasTkAgg(fig, master=self)
@@ -222,7 +224,7 @@ class NewExperiment(tk.Toplevel):
                            f"Длина заготовки: {length_piece} мм, Сечение(axb): {a}мм x {b}мм\n"
                            f"Режимы резания: {n=}об/мин, {s=} мм/мин")
 
-        self.canvas_point = tk.Canvas(self, width=1000, height=100)
+        self.canvas_point = tk.Canvas(self, width=2000, height=100)
         self.scrollbar = tk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas_point.xview)
         self.canvas_point.pack(padx=5, pady=5)
 
@@ -272,7 +274,9 @@ class NewExperiment(tk.Toplevel):
 class Spinner(tk.Spinbox):
     def __init__(self, master=None, step_: int | float = 1, default: str = "4", **kwargs):
         super().__init__(master, **kwargs)
-        self.bind('<MouseWheel>', lambda event, step=step_: plus(event, self, func=master.master.master.master.graphik))
+        self.bind('<MouseWheel>', lambda event, step=step_: plus(event,
+                                                                 self,
+                                                                 func= master.master.master.master.graphik))
         self.insert(0, default)
 
 
@@ -281,7 +285,8 @@ class Entry_wear(tk.Entry):
     def __init__(self, master=None, step_: int | float = 1, default='0.05', **kwargs):
         super().__init__(master, **kwargs)
         self.bind('<MouseWheel>',
-                  lambda event, step=step_: plus(event, self, step, master.master.master.master.graphik))
+                  lambda event, step=step_: plus(event, self, step,
+                                                 master.master.master.master.graphik))
         self.insert(0, default)
 
 
@@ -298,7 +303,7 @@ class ViewExperiment(tk.Toplevel):
         self.frame_experiment.grid(row=0, column=0, padx=5, pady=5)
         self.listbox_experiment = tk.Listbox(self.frame_experiment, selectmode=tk.EXTENDED)
         self.listbox_experiment.pack(padx=5, pady=5)
-        self.listbox_experiment.bind("<<ListboxSelect>>", lambda event: self.few_graphik())
+        self.listbox_experiment.bind("<<ListboxSelect>>", lambda event: self.select_experiment())
         self.experiment()
 
         self.canvas_experiment = tk.Frame(self)
@@ -319,40 +324,73 @@ class ViewExperiment(tk.Toplevel):
         data.close()
         self.listbox_experiment.config(width=max_len)
 
+    def create_full_table(self):
+        selected_experiment = self.listbox_experiment.curselection()
+        if selected_experiment:
+            self.full_table: pd.DataFrame = self.list_experiment[selected_experiment[0]].table[
+                ['Величина обработки', 'Величина износа']]
+            new_name_column = (f'{self.list_experiment[selected_experiment[0]].material}; '
+                               f'{self.list_experiment[selected_experiment[0]].coating}; '
+                               f'{self.list_experiment[selected_experiment[0]].tool};'
+                               f'{self.list_experiment[selected_experiment[0]].n}; '
+                               f'{self.list_experiment[selected_experiment[0]].s}; '
+                               f'{self.list_experiment[selected_experiment[0]].length_piece}; ')
+
+            self.full_table.columns = ['Величина обработки', new_name_column]
+            for index, experiment in enumerate(self.list_experiment):
+                if index != selected_experiment[0] and index in selected_experiment:
+                    # Слияние таблиц по колонке 'Величина обработки'
+                    experiment_data = experiment.table[['Величина обработки', 'Величина износа']]
+                    new_experiment_name = (f'{experiment.material}; {experiment.coating}; {experiment.tool}'
+                                           f'{experiment.n}; {experiment.s}; {experiment.length_piece}; ')
+
+                    # Переименовываем колонку 'Величина износа'
+                    experiment_data = experiment_data.rename(columns={'Величина износа': new_experiment_name})
+
+                    # Слияние с основной таблицей
+                    self.full_table = pd.merge(self.full_table, experiment_data,
+                                               how='outer', on='Величина обработки',
+                                               suffixes=('', f' {new_experiment_name}'),
+                                               sort=True)
+        else:
+            self.full_table = None
+
     def few_graphik(self):
         selected_experiment = self.listbox_experiment.curselection()
-        for widget in self.frame_table.winfo_children():
-            widget.destroy()
-
         if selected_experiment:
-
             fig, ax = plt.subplots()
-
+            fig.set_size_inches(10, 4)
             ax.axhline(y=0.3, color='r', linestyle='-')
-            self.full_table = self.list_experiment[selected_experiment[0]].table[['Величина обработки', 'Величина износа']]
 
+            for name_column in self.full_table.columns[1:]:
+                x = self.full_table[self.full_table[name_column].notna()]['Величина обработки'].tolist()
+                y = self.full_table[self.full_table[name_column].notna()][name_column].tolist()
+                ax.plot(x, y, label=f'{name_column}',
+                        marker='o')
 
-            for index, experiment in enumerate(self.list_experiment):
-                if index in selected_experiment:
-                    x = experiment.table['Величина обработки']
-                    y = experiment.table['Величина износа']
-                    ax.plot(x, y, label=f"{experiment.material}; {experiment.coating}; {experiment.tool}",
-                            marker='o')
-                    if index != selected_experiment[0]:
-                        self.full_table = pd.merge(self.full_table, experiment.table[['Величина обработки', 'Величина износа']],
-                                              how='outer', on='Величина обработки',
-                                              suffixes=(
-                                                  '',
-                                                  f' {experiment.material}; {experiment.coating}; {experiment.tool}'),
-                                              sort=True)
+            ax.set_xlabel('Величина обработки')
+            ax.set_ylabel('Величина износа')
+            ax.grid()
+            ax.legend()
 
+            if self.canvas_graph:
+                self.canvas_graph.get_tk_widget().destroy()
+
+            self.canvas_graph = FigureCanvasTkAgg(fig, master=self.canvas_experiment)
+            self.canvas_graph.get_tk_widget().pack(padx=5, pady=5)
+            self.canvas_graph.draw()
+
+            plt.close(fig)
+
+    def create_table_on_frame(self):
+        selected_experiment = self.listbox_experiment.curselection()
+        if selected_experiment:
+            for widget in self.frame_table.winfo_children():
+                widget.destroy()
             if selected_experiment:
                 columns = self.full_table['Величина обработки'].tolist()
-                names_experiment = [names.replace('Величина износа', '').strip() for names in self.full_table.columns][1:]
-                names_experiment[0] = (f'{self.list_experiment[selected_experiment[0]].material}; '
-                                       f'{self.list_experiment[selected_experiment[0]].coating}; '
-                                       f'{self.list_experiment[selected_experiment[0]].tool};')
-
+                names_experiment = [names.replace('Величина износа', '').strip() for names in self.full_table.columns][
+                                   1:]
                 for index, column in enumerate(columns):
                     label = tk.Label(self.frame_table, text=int(column))
                     label.grid(padx=2, pady=2, column=index + 1, row=0)
@@ -367,32 +405,21 @@ class ViewExperiment(tk.Toplevel):
                                            width=6)
                         entry.grid(padx=2, pady=2, column=index_columns + 1, row=index_names + 1)
                         entry.bind('<MouseWheel>', lambda event, step=0.002, ent=entry: plus(event, ent, step,
-                                                                                             self.change_graphik(event)))
+                                                                                             func=self.change_graphik))
 
-            ax.set_xlabel('Величина обработки')
-            ax.set_ylabel('Величина износа')
-            ax.grid()
-            ax.legend()
-
-            if self.canvas_graph:
-                self.canvas_graph.get_tk_widget().destroy()
-
-            self.canvas_graph = FigureCanvasTkAgg(fig, master=self.canvas_experiment)
-            self.canvas_graph.get_tk_widget().pack(padx=5, pady=5)
-            self.canvas_graph.draw()
-
-            plt.close(fig)  # type:
+    def select_experiment(self):
+        self.create_full_table()
+        self.few_graphik()
+        self.create_table_on_frame()
+        print(self.full_table.shape)
 
     def change_graphik(self, event):
         entry = event.widget
         column = entry.grid_info()['column']
         row = entry.grid_info()['row']
-        self.full_table.iloc[column - 1, row - 1] = float(entry.get())
+        self.full_table.iloc[column - 1, row] = float(entry.get())
+        display(self.full_table)
         self.few_graphik()
-
-
-
-
 
 
 if __name__ == '__main__':

@@ -1,6 +1,7 @@
 import tkinter as tk
 
 
+
 def check_float(string: str):
     try:
         float(string)
@@ -11,17 +12,18 @@ def check_float(string: str):
 
 def plus(event, spinbox, step=1, func=None):
     if check_float(spinbox.get()):
+        num = float(spinbox.get())
         if event.delta < 0:
-            num = float(spinbox.get())
-            spinbox.delete(0, len(spinbox.get()))
-            spinbox.insert(0, round((num - step), 3))
+            num = round((num - step), 3)
         else:
-            num = float(spinbox.get())
-            spinbox.delete(0, len(spinbox.get()))
-            spinbox.insert(0, round((num + step), 3))
+            num = round((num + step), 3)
 
-    if func is not None:
-        func()
+        spinbox.delete(0, tk.END)
+        spinbox.insert(0, num)
+
+        # Вызов функции обновления
+        if func is not None:
+            func(event)
 
 
 def on_mouse_wheel(event, canvas):
@@ -47,3 +49,8 @@ def leave(event: str, label: tk.LabelFrame) -> None:
     label.config(bg="SystemButtonFace")
     label.update_idletasks()
     label.master.master.xview_moveto(scroll_pos[0])
+
+
+def interpolate_data(data_frame):
+    """Интерполирует пропущенные значения в DataFrame."""
+    return data_frame.interpolate(method='linear', limit_direction='forward', axis=0)
