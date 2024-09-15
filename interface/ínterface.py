@@ -331,7 +331,7 @@ class ViewExperiment(tk.Toplevel):
                 ['Величина обработки', 'Величина износа']]
             new_name_column = (f'{self.list_experiment[selected_experiment[0]].material}; '
                                f'{self.list_experiment[selected_experiment[0]].coating}; '
-                               f'{self.list_experiment[selected_experiment[0]].tool};'
+                               f'{self.list_experiment[selected_experiment[0]].tool};\n'
                                f'{self.list_experiment[selected_experiment[0]].n}; '
                                f'{self.list_experiment[selected_experiment[0]].s}; '
                                f'{self.list_experiment[selected_experiment[0]].length_piece}; ')
@@ -341,7 +341,7 @@ class ViewExperiment(tk.Toplevel):
                 if index != selected_experiment[0] and index in selected_experiment:
                     # Слияние таблиц по колонке 'Величина обработки'
                     experiment_data = experiment.table[['Величина обработки', 'Величина износа']]
-                    new_experiment_name = (f'{experiment.material}; {experiment.coating}; {experiment.tool}'
+                    new_experiment_name = (f'{experiment.material}; {experiment.coating}; {experiment.tool};\n'
                                            f'{experiment.n}; {experiment.s}; {experiment.length_piece}; ')
 
                     # Переименовываем колонку 'Величина износа'
@@ -397,6 +397,8 @@ class ViewExperiment(tk.Toplevel):
                 for index, name in enumerate(names_experiment):
                     label = tk.Label(self.frame_table, text=name)
                     label.grid(padx=2, pady=2, column=0, row=index + 1)
+                    button = tk.Button(self.frame_table, text='Сохранить')
+                    button.grid(padx=2, pady=2, column=len(columns) + 1, row=index + 1)
 
                 for index_columns, column in enumerate(columns):
                     for index_names, name in enumerate(names_experiment):
@@ -406,19 +408,21 @@ class ViewExperiment(tk.Toplevel):
                         entry.grid(padx=2, pady=2, column=index_columns + 1, row=index_names + 1)
                         entry.bind('<MouseWheel>', lambda event, step=0.002, ent=entry: plus(event, ent, step,
                                                                                              func=self.change_graphik))
+                        entry.bind('<Return>', lambda event, ent=entry: self.change_graphik(event))
+
+
 
     def select_experiment(self):
         self.create_full_table()
         self.few_graphik()
         self.create_table_on_frame()
-        print(self.full_table.shape)
+        # print(self.full_table.shape)
 
     def change_graphik(self, event):
         entry = event.widget
         column = entry.grid_info()['column']
         row = entry.grid_info()['row']
         self.full_table.iloc[column - 1, row] = float(entry.get())
-        display(self.full_table)
         self.few_graphik()
 
 
