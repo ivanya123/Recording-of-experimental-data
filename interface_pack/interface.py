@@ -74,7 +74,8 @@ class Main(tk.Tk):
         self.listbox_stage = ttk.Combobox(self.frame_stage, values=self.list_stage)
         self.listbox_stage.set(self.list_stage[5])
         self.listbox_stage.grid(row=0, column=0, padx=5, pady=5)
-        self.stage_add = tk.Button(self.frame_stage, text="Добавить этап")
+        self.stage_add = tk.Button(self.frame_stage, text="Добавить этап",
+                                   command=lambda type_='Этап': self.add_type(type_))
         self.stage_add.grid(row=0, column=1, padx=5, pady=5)
 
         self.frame_section = tk.LabelFrame(self, text="Сечение")
@@ -142,6 +143,7 @@ class Main(tk.Tk):
     def add_type(self, type_):
         add_window = AddConstant(type_, self.file_data)
         add_window.grab_set()
+
 
 class NewExperiment(tk.Toplevel):
 
@@ -312,9 +314,9 @@ class ViewExperiment(tk.Toplevel):
         self.select_exp = []
         self.canvas_graph = None
 
-        self.canvas_experiment = tk.Canvas(self, width=400, height=500)
+        self.canvas_experiment = tk.Canvas(self, width=400, height=400)
         self.scrollbar_experiment = tk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas_experiment.yview)
-        self.canvas_experiment.grid(row=0, column=1, padx=5, pady=5)
+        self.canvas_experiment.grid(row=0, column=1)
         self.scrollbar_experiment.config(command=self.canvas_experiment.yview)
         self.scrollbar_experiment.grid(row=0, column=0, padx=5, pady=5, sticky="ns")
         self.frame_experiment = tk.Frame(self.canvas_experiment)
@@ -327,11 +329,33 @@ class ViewExperiment(tk.Toplevel):
         self.scrollbar_experiment.bind('<MouseWheel>', lambda event: on_mouse_wheel_y(event, self.canvas_experiment))
         self.experiment()
 
-        self.canvas_experiment_graph = tk.Frame(self)
-        self.canvas_experiment_graph.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
+        self.frame_experiment_graph = tk.Frame(self)
+        self.frame_experiment_graph.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
 
-        self.frame_table = tk.Frame(self)
-        self.frame_table.grid(row=1, column=0, padx=5, pady=5, columnspan=3, sticky="ew")
+        self.canvas_full_table = tk.Canvas(self,
+                                           width=1400, background='lightgrey', height=200)
+        self.canvas_full_table.grid(row=1, column=1, padx=5, pady=5, columnspan=2)
+        self.scrollbar_full_table = tk.Scrollbar(self,
+                                                 orient=tk.HORIZONTAL,
+                                                 command=self.canvas_full_table.xview)
+        self.scrollbar_full_table.config(command=self.canvas_full_table.xview)
+        self.scrollbar_full_table.grid(row=2, column=1, sticky="ew", columnspan=3)
+        self.frame_table = tk.Frame(self.canvas_full_table)
+        self.canvas_full_table.create_window((0, 0), window=self.frame_table, anchor='nw')
+
+        def on_canvas_full_table_configure(event):
+            self.canvas_full_table.configure(scrollregion=self.canvas_full_table.bbox("all"))
+
+        self.frame_table.bind("<Configure>", on_canvas_full_table_configure)
+        self.scrollbar_full_table.bind('<MouseWheel>', lambda event: on_mouse_wheel_x(event, self.canvas_full_table))
+
+        self.scrollbar_full_table_y = tk.Scrollbar(self,
+                                                   orient=tk.VERTICAL,
+                                                   command=self.canvas_full_table.yview)
+        self.scrollbar_full_table_y.config(command=self.canvas_full_table.yview)
+        self.scrollbar_full_table_y.grid(row=1, column=0, sticky="ns")
+        self.scrollbar_full_table_y.bind('<MouseWheel>',
+                                         lambda event: on_mouse_wheel_y(event, self.canvas_full_table))
 
     def experiment(self):
         data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
@@ -381,7 +405,7 @@ class ViewExperiment(tk.Toplevel):
 
         if self.select_exp:
             fig, ax = plt.subplots()
-            fig.set_size_inches(10, 5.5)
+            fig.set_size_inches(10, 5)
             ax.axhline(y=0.3, color='r', linestyle='-')
 
             for name_column in self.full_table.columns[1:]:
@@ -398,7 +422,7 @@ class ViewExperiment(tk.Toplevel):
             if self.canvas_graph:
                 self.canvas_graph.get_tk_widget().destroy()
 
-            self.canvas_graph = FigureCanvasTkAgg(fig, master=self.canvas_experiment_graph)
+            self.canvas_graph = FigureCanvasTkAgg(fig, master=self.frame_experiment_graph)
             self.canvas_graph.get_tk_widget().pack(padx=5, pady=5)
             self.canvas_graph.draw()
 
@@ -419,7 +443,8 @@ class ViewExperiment(tk.Toplevel):
                 for index, name in enumerate(names_experiment):
                     label = tk.Label(self.frame_table, text=name)
                     label.grid(padx=2, pady=2, column=0, row=index + 1)
-                    button = tk.Button(self.frame_table, text='Сохранить')
+                    button = tk.Button(self.frame_table, text='Сохранить',
+                                       command=lambda i=index: self.save_button(i))
                     button.grid(padx=2, pady=2, column=len(columns) + 1, row=index + 1)
 
                 for index_columns, column in enumerate(columns):
@@ -442,7 +467,6 @@ class ViewExperiment(tk.Toplevel):
             self.few_graphik()
             self.create_table_on_frame()
 
-
     def unselect_experiment(self, event: tk.Event):
         widget: tk.Label = event.widget
         widget.configure(background='SystemButtonFace')
@@ -452,8 +476,6 @@ class ViewExperiment(tk.Toplevel):
             self.create_full_table()
             self.few_graphik()
             self.create_table_on_frame()
-
-
 
     def save_table(self, event: tk.Event):
         entry = event.widget
@@ -468,6 +490,14 @@ class ViewExperiment(tk.Toplevel):
         row = entry.grid_info()['row']
         self.full_table.iloc[column - 1, row] = float(entry.get())
         self.few_graphik()
+
+    def save_button(self, index: int):
+        new_column = self.full_table.iloc[:, index + 1]
+        self.list_experiment[index].table['Величина износа'] = new_column
+        data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
+        key = self.select_exp[index]
+        data[str(key)] = self.list_experiment[index]
+        data.close()
 
 
 if __name__ == '__main__':

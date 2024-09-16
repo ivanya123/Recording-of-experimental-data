@@ -7,7 +7,8 @@ from data_constant import *
 dict_add_function = {
     'Материал': add_material,
     'Покрытие': add_coating,
-    'Инструмент': add_tool
+    'Инструмент': add_tool,
+    'Этап': add_stage,
 }
 
 

@@ -39,11 +39,11 @@ def on_mouse_wheel_x(event, canvas):
 def on_mouse_wheel_y(event, canvas):
     if event.delta:
         canvas.yview_scroll(-1 * int(event.delta / 120), "units")
-    else:
-        if event.num == 4:
-            canvas.yview_scroll(-1, "units")
-        elif event.num == 5:
-            canvas.yview_scroll(1, "units")
+    # else:
+    #     if event.num == 4:
+    #         canvas.yview_scroll(-1, "units")
+    #     elif event.num == 5:
+    #         canvas.yview_scroll(1, "units")
 
 def enter(event: str, label: ttk.LabelFrame) -> None:
     # scroll_pos = label.master.master.xview()
