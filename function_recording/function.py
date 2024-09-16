@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.ttk as ttk
 
 
 
@@ -26,7 +27,7 @@ def plus(event, spinbox, step=1, func=None):
             func(event)
 
 
-def on_mouse_wheel(event, canvas):
+def on_mouse_wheel_x(event, canvas):
     if event.delta:
         canvas.xview_scroll(-1 * int(event.delta / 120), "units")
     else:
@@ -35,20 +36,28 @@ def on_mouse_wheel(event, canvas):
         elif event.num == 5:
             canvas.xview_scroll(1, "units")
 
+def on_mouse_wheel_y(event, canvas):
+    if event.delta:
+        canvas.yview_scroll(-1 * int(event.delta / 120), "units")
+    else:
+        if event.num == 4:
+            canvas.yview_scroll(-1, "units")
+        elif event.num == 5:
+            canvas.yview_scroll(1, "units")
 
-def enter(event: str, label: tk.LabelFrame) -> None:
-    scroll_pos = label.master.master.xview()
+def enter(event: str, label: ttk.LabelFrame) -> None:
+    # scroll_pos = label.master.master.xview()
 
-    label.config(bg="lightblue")
-    label.update_idletasks()
-    label.master.master.xview_moveto(scroll_pos[0])
+    label.config(style='LabelEnter.TLabelframe')
+    # label.update_idletasks()
+    # label.master.master.xview_moveto(scroll_pos[0])
 
-def leave(event: str, label: tk.LabelFrame) -> None:
-    scroll_pos = label.master.master.xview()
+def leave(event: str, label: ttk.LabelFrame) -> None:
+    # scroll_pos = label.master.master.xview()
 
-    label.config(bg="SystemButtonFace")
-    label.update_idletasks()
-    label.master.master.xview_moveto(scroll_pos[0])
+    label.config(style='LabelLeave.TLabelframe')
+    # label.update_idletasks()
+    # label.master.master.xview_moveto(scroll_pos[0])
 
 
 def interpolate_data(data_frame):
