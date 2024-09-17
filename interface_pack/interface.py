@@ -11,8 +11,8 @@ import pandas as pd
 from data_constant import *
 from function_recording.function import *
 from function_recording.experiment import Experiment
-from class_add import AddConstant
-from window_add_point import AddPoint
+from interface_pack.class_add import AddConstant
+from interface_pack.window_add_point import AddPoint
 
 
 def first_start():
