@@ -21,10 +21,10 @@ def first_start():
             file_path = json.load(f)
             return file_path['path'], file_path['save']
     else:
-        file_path = {'path': filedialog.askopenfilename(title='Выберать файл констант'),
-                     'save': filedialog.askdirectory(title="Выберать папку для сохранения данных")}
+        file_path = {'path': os.path.basename(filedialog.askopenfilename(title='Выберать файл констант')),
+                     'save': os.path.basename(filedialog.askdirectory(title="Выберать папку для сохранения данных"))}
         with open('config.json', 'w') as f:
-            json.dump(file_path, f)
+            json.dump(file_path, f, indent=4)
         return file_path['path'], file_path['save']
 
 
@@ -390,7 +390,8 @@ class ViewExperiment(tk.Toplevel):
         if self.select_exp:
             self.full_table: pd.DataFrame = self.list_experiment[self.select_exp[0]].table[
                 ['Величина обработки', 'Величина износа']]
-            new_name_column = (f'{self.list_experiment[self.select_exp[0]].material}; '
+            key = self.select_exp[0]
+            new_name_column = (f'{key}: {self.list_experiment[self.select_exp[0]].material}; '
                                f'{self.list_experiment[self.select_exp[0]].coating}; '
                                f'{self.list_experiment[self.select_exp[0]].tool};\n'
                                f'{self.list_experiment[self.select_exp[0]].n}; '
@@ -402,7 +403,7 @@ class ViewExperiment(tk.Toplevel):
                 if index != self.select_exp[0] and index in self.select_exp:
                     # Слияние таблиц по колонке 'Величина обработки'
                     experiment_data = experiment.table[['Величина обработки', 'Величина износа']]
-                    new_experiment_name = (f'{experiment.material}; {experiment.coating}; {experiment.tool};\n'
+                    new_experiment_name = (f'{key}: {experiment.material}; {experiment.coating}; {experiment.tool};\n'
                                            f'{experiment.n}; {experiment.s}; {experiment.length_piece}; ')
 
                     # Переименовываем колонку 'Величина износа'

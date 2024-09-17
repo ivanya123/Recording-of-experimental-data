@@ -1,1 +1,4 @@
-{"path": "C:/Users/aples/PycharmProjects/Recording-of-experimental-data/data_constant.json", "save": "C:/Users/aples/PycharmProjects/Recording-of-experimental-data/data"}
+{
+    "path": "data_constant.json",
+    "save": "data"
+}
