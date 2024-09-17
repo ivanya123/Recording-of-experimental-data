@@ -12,6 +12,7 @@ from data_constant import *
 from function_recording.function import *
 from function_recording.experiment import Experiment
 from class_add import AddConstant
+from window_add_point import AddPoint
 
 
 def first_start():
@@ -138,7 +139,8 @@ class Main(tk.Tk):
 
     def view_button(self):
         window = ViewExperiment(self.dir_save)
-        window.grab_set()
+        self.wait_window(window)
+        window.mainloop()
 
     def add_type(self, type_):
         add_window = AddConstant(type_, self.file_data)
@@ -183,7 +185,7 @@ class NewExperiment(tk.Toplevel):
                            f"Длина заготовки: {length_piece} мм, Сечение(axb): {a}мм x {b}мм\n"
                            f"Режимы резания: {n=}об/мин, {s=} мм/мин")
 
-        self.canvas_point = tk.Canvas(self, width=2000, height=100)
+        self.canvas_point = tk.Canvas(self, width=2000, height=130)
         self.scrollbar = tk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas_point.xview)
         self.canvas_point.pack(padx=5, pady=5)
 
@@ -238,7 +240,17 @@ class NewExperiment(tk.Toplevel):
         self.new_entry.pack(padx=5, pady=5)
         self.new_entry.bind('<Return>', lambda e: self.graphik())
 
-        self.list_point.append((self.new_spin, self.new_entry))
+        self.entry_length_piece = Entry_wear(
+            self.frame_point,
+            1,
+            default=self.list_point[self.count_point - 1][2].get() if self.list_point else str(
+                self.experiment.length_piece
+            )
+        )
+        self.entry_length_piece.pack(padx=5, pady=5)
+        self.entry_length_piece.bind('<Return>', lambda e: self.graphik())
+
+        self.list_point.append((self.new_spin, self.new_entry, self.entry_length_piece))
 
         self.graphik()
         self.canvas_point.configure(scrollregion=self.canvas_point.bbox("all"))
@@ -248,7 +260,7 @@ class NewExperiment(tk.Toplevel):
         self.experiment.table = self.experiment.table.drop(index=list(range(self.count_point + 1)))
         self.experiment.table.loc[0] = [0, 0, 0]
         for point in self.list_point:
-            self.experiment.add_point(float(point[0].get()), float(point[1].get()))
+            self.experiment.add_point(float(point[0].get()), float(point[1].get()), float(point[2].get()))
 
         fig, ax = self.experiment.graphik()
         ax.axhline(0.3)
@@ -311,7 +323,7 @@ class ViewExperiment(tk.Toplevel):
         self.title("Данные об износе.")
         self.dir_save = dir_save
         self.list_experiment: list[Experiment] = []
-        self.select_exp = []
+        self.select_exp: list[int] = []
         self.canvas_graph = None
 
         self.canvas_experiment = tk.Canvas(self, width=400, height=400)
@@ -358,6 +370,8 @@ class ViewExperiment(tk.Toplevel):
                                          lambda event: on_mouse_wheel_y(event, self.canvas_full_table))
 
     def experiment(self):
+        for widget in self.frame_experiment.winfo_children():
+            widget.destroy()
         data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
         for key, value in data.items():
             text = (f"{key}: {value.material}; {value.coating}; {value.tool}; "
@@ -367,6 +381,7 @@ class ViewExperiment(tk.Toplevel):
             self.label_experiment.index = key
             self.label_experiment.bind('<Button-1>', self.select_experiment)
             self.label_experiment.bind('<Button-3>', self.unselect_experiment)
+            self.label_experiment.bind('<Control-ButtonPress-3>', self.delete_experiment)
             self.list_experiment.append(value)  # type Experiment
         data.close()
 
@@ -433,6 +448,10 @@ class ViewExperiment(tk.Toplevel):
         if self.select_exp:
             for widget in self.frame_table.winfo_children():
                 widget.destroy()
+
+            button_add = tk.Button(self.frame_table, text='Добавить точку', command=self.add_new_point)
+            button_add.grid(padx=2, pady=2, column=0, row=0)
+
             if self.select_exp:
                 columns = self.full_table['Величина обработки'].tolist()
                 names_experiment = [names.replace('Величина износа', '').strip() for names in self.full_table.columns][
@@ -440,6 +459,7 @@ class ViewExperiment(tk.Toplevel):
                 for index, column in enumerate(columns):
                     label = tk.Label(self.frame_table, text=int(column))
                     label.grid(padx=2, pady=2, column=index + 1, row=0)
+                    label.bind('<Control-ButtonPress-3>', self.delete_point)
                 for index, name in enumerate(names_experiment):
                     label = tk.Label(self.frame_table, text=name)
                     label.grid(padx=2, pady=2, column=0, row=index + 1)
@@ -476,6 +496,14 @@ class ViewExperiment(tk.Toplevel):
             self.create_full_table()
             self.few_graphik()
             self.create_table_on_frame()
+        if not self.select_exp:
+            if self.canvas_graph:
+                self.canvas_graph.get_tk_widget().destroy()
+                for widget in self.frame_table.winfo_children():
+                    widget.destroy()
+
+
+
 
     def save_table(self, event: tk.Event):
         entry = event.widget
@@ -492,12 +520,62 @@ class ViewExperiment(tk.Toplevel):
         self.few_graphik()
 
     def save_button(self, index: int):
-        new_column = self.full_table.iloc[:, index + 1]
-        self.list_experiment[index].table['Величина износа'] = new_column
-        data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
         key = self.select_exp[index]
+        new_table = self.full_table.iloc[:, [0, index + 1]].dropna()
+        s = self.list_experiment[index].s
+        new_table['Время обработки'] = new_table['Величина обработки'] * s
+        table = new_table[['Величина обработки', 'Время обработки', new_table.columns[1]]].reset_index(drop=True)
+        table.columns = self.list_experiment[index].table.columns
+
+        self.list_experiment[key].table = table
+        data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
         data[str(key)] = self.list_experiment[index]
         data.close()
+
+    def add_new_point(self):
+        window = AddPoint()
+        self.wait_window(window)
+        try:
+            new_point = [float(window.result)]
+            new_point.extend(None for i in range(len(self.select_exp)))
+            self.full_table.loc[len(self.full_table)] = new_point
+            self.full_table = self.full_table.sort_values(by='Величина обработки', ascending=True)
+            self.few_graphik()
+            self.create_table_on_frame()
+        except AttributeError:
+            tkinter.messagebox.showinfo(title='Ошибка', message='Точка не вписана')
+
+    def delete_point(self, event):
+        label: tk.Label = event.widget
+        num_record = label.grid_info()['column'] - 1
+        self.full_table = self.full_table.drop(self.full_table.index[num_record])
+        self.few_graphik()
+        self.create_table_on_frame()
+
+    def delete_experiment(self, event):
+        widget: tk.Label = event.widget
+        index = int(widget.index)
+        if index in self.select_exp:
+            self.unselect_experiment(event)
+
+        self.list_experiment.pop(index)
+        with shelve.open(os.path.join(self.dir_save, "experiment.db")) as data:
+            del data[str(index)]
+
+        self.experiment()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':

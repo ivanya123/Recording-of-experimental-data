@@ -21,8 +21,8 @@ class Experiment:
              "Величина износа": [0]}
         )
 
-    def add_point(self, n_step, wear):
-        length_processing = self.length_piece * n_step
+    def add_point(self, n_step, wear, length_piece):
+        length_processing = length_piece * n_step
         time_processing = length_processing * self.s
         self.table.loc[len(self.table)] = [length_processing, time_processing, wear]
 
