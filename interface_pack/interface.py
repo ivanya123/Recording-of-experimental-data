@@ -336,9 +336,9 @@ class ViewExperiment(tk.Toplevel):
         self.canvas_experiment = tk.Canvas(self, width=600, height=400)
         self.scrollbar_experiment = tk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas_experiment.yview,
                                                  background="lightgrey")
-        self.canvas_experiment.grid(row=0, column=1)
+        self.canvas_experiment.grid(row=0, column=1, rowspan=2)
         self.scrollbar_experiment.config(command=self.canvas_experiment.yview)
-        self.scrollbar_experiment.grid(row=0, column=0, padx=5, pady=5, sticky="ns")
+        self.scrollbar_experiment.grid(row=0, column=0, padx=5, pady=5, sticky="ns", rowspan=2)
         self.frame_experiment = tk.Frame(self.canvas_experiment)
         self.canvas_experiment.create_window((0, 0), window=self.frame_experiment, anchor='nw')
 
@@ -348,18 +348,30 @@ class ViewExperiment(tk.Toplevel):
         self.frame_experiment.bind("<Configure>", on_canvas_configure)
         self.scrollbar_experiment.bind('<MouseWheel>', lambda event: on_mouse_wheel_y(event, self.canvas_experiment))
 
+        self.combobox_type_table = ttk.Combobox(self,
+                                                values=['Путь', 'Время обработки'])
+        self.combobox_type_table.grid(row=0, column=2, padx=5, pady=5)
+        self.combobox_type_table.current(0)
+
+        def change_type_table(event):
+            self.create_full_table(self.combobox_type_table.get())
+            self.few_graphik()
+            self.create_table_on_frame()
+
+        self.combobox_type_table.bind("<<ComboboxSelected>>", change_type_table)
+
         self.frame_experiment_graph = tk.Frame(self)
-        self.frame_experiment_graph.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
+        self.frame_experiment_graph.grid(row=1, column=2, padx=5, pady=5, sticky="ew")
 
         self.canvas_full_table = tk.Canvas(self,
                                            width=1400, background='lightgrey', height=200)
-        self.canvas_full_table.grid(row=1, column=1, padx=5, pady=5, columnspan=2)
+        self.canvas_full_table.grid(row=2, column=1, padx=5, pady=5, columnspan=2)
         self.scrollbar_full_table = tk.Scrollbar(self,
                                                  orient=tk.HORIZONTAL,
                                                  command=self.canvas_full_table.xview,
                                                  background="grey")
         self.scrollbar_full_table.config(command=self.canvas_full_table.xview)
-        self.scrollbar_full_table.grid(row=2, column=1, sticky="ew", columnspan=3)
+        self.scrollbar_full_table.grid(row=3, column=1, sticky="ew", columnspan=2)
         self.frame_table = tk.Frame(self.canvas_full_table)
         self.canvas_full_table.create_window((0, 0), window=self.frame_table, anchor='nw')
         self.experiment()
@@ -376,7 +388,7 @@ class ViewExperiment(tk.Toplevel):
                                                    background='grey',
                                                    troughcolor='lightblue')
         self.scrollbar_full_table_y.config(command=self.canvas_full_table.yview)
-        self.scrollbar_full_table_y.grid(row=1, column=0, sticky="ns")
+        self.scrollbar_full_table_y.grid(row=2, column=0, sticky="ns")
         self.scrollbar_full_table_y.bind('<MouseWheel>',
                                          lambda event: on_mouse_wheel_y(event, self.canvas_full_table))
 
@@ -464,15 +476,16 @@ class ViewExperiment(tk.Toplevel):
                 self.list_experiment.append(value)  # type Experiment
             data.close()
         self.select_exp.clear()
-        self.create_full_table()
+        self.create_full_table(self.combobox_type_table.get())
         self.few_graphik()
-        self.create_table_on_frame()
+        # self.create_table_on_frame()
 
-    def create_full_table(self):
+    def create_full_table(self, type_x):
+        name_x = 'Величина обработки' if type_x == 'Путь' else 'Время обработки'
 
         if self.select_exp:
             self.full_table: pd.DataFrame = self.list_experiment[self.select_exp[0]].table[
-                ['Величина обработки', 'Величина износа']]
+                [name_x, 'Величина износа']]
             key = self.select_exp[0]
             new_name_column = (f'{key}: {self.list_experiment[self.select_exp[0]].material}; '
                                f'{self.list_experiment[self.select_exp[0]].coating}; '
@@ -481,11 +494,11 @@ class ViewExperiment(tk.Toplevel):
                                f'{self.list_experiment[self.select_exp[0]].s}; '
                                f'{self.list_experiment[self.select_exp[0]].length_piece}; ')
 
-            self.full_table.columns = ['Величина обработки', new_name_column]
+            self.full_table.columns = [name_x, new_name_column]
             for index, experiment in enumerate(self.list_experiment):
                 if index != self.select_exp[0] and index in self.select_exp:
                     # Слияние таблиц по колонке 'Величина обработки'
-                    experiment_data = experiment.table[['Величина обработки', 'Величина износа']]
+                    experiment_data = experiment.table[[name_x, 'Величина износа']]
                     new_experiment_name = (f'{key}: {experiment.material}; {experiment.coating}; {experiment.tool};\n'
                                            f'{experiment.n}; {experiment.s}; {experiment.length_piece}; ')
 
@@ -494,27 +507,26 @@ class ViewExperiment(tk.Toplevel):
 
                     # Слияние с основной таблицей
                     self.full_table = pd.merge(self.full_table, experiment_data,
-                                               how='outer', on='Величина обработки',
+                                               how='outer', on=name_x,
                                                suffixes=('', f' {new_experiment_name}'),
                                                sort=True)
         else:
             self.full_table = None
 
     def few_graphik(self):
-
         if self.select_exp:
             fig, ax = plt.subplots()
             fig.set_size_inches(8, 5)
             ax.axhline(y=0.3, color='r', linestyle='-')
-
+            name_x = self.full_table.columns[0]
             for name_column in self.full_table.columns[1:]:
-                x = self.full_table[self.full_table[name_column].notna()]['Величина обработки'].tolist()
+                x = self.full_table[self.full_table[name_column].notna()][name_x].tolist()
                 y = self.full_table[self.full_table[name_column].notna()][name_column].tolist()
                 ax.plot(x, y, label=f'{name_column}',
                         marker='o')
 
-            ax.set_xlabel('Величина обработки')
-            ax.set_ylabel('Величина износа')
+            ax.set_xlabel(f"{name_x}, мм" if name_x == 'Величина обработки' else f"{name_x}, мин")
+            ax.set_ylabel('Величина износа, мм')
             ax.grid()
             ax.legend()
 
@@ -532,8 +544,8 @@ class ViewExperiment(tk.Toplevel):
                 self.canvas_graph = None
 
     def create_table_on_frame(self):
-
         if self.select_exp:
+            name_x = self.full_table.columns[0]
             for widget in self.frame_table.winfo_children():
                 widget.destroy()
 
@@ -541,11 +553,14 @@ class ViewExperiment(tk.Toplevel):
             button_add.grid(padx=2, pady=2, column=0, row=0)
 
             if self.select_exp:
-                columns = self.full_table['Величина обработки'].tolist()
+                columns = self.full_table[name_x].tolist()
                 names_experiment = [names.replace('Величина износа', '').strip() for names in self.full_table.columns][
                                    1:]
                 for index, column in enumerate(columns):
-                    label = tk.Label(self.frame_table, text=int(column))
+                    if name_x == 'Величина обработки':
+                        label = tk.Label(self.frame_table, text=round(float(column)))
+                    else:
+                        label = tk.Label(self.frame_table, text=round(float(column), 1))
                     label.grid(padx=2, pady=2, column=index + 1, row=0)
                     label.bind('<Control-ButtonPress-3>', self.delete_point)
                 for index, name in enumerate(names_experiment):
@@ -574,7 +589,7 @@ class ViewExperiment(tk.Toplevel):
         index = int(widget.index)
         if index not in self.select_exp:
             self.select_exp.append(index)
-            self.create_full_table()
+            self.create_full_table(self.combobox_type_table.get())
             self.few_graphik()
             self.create_table_on_frame()
 
@@ -584,7 +599,7 @@ class ViewExperiment(tk.Toplevel):
         index = int(widget.index)
         if index in self.select_exp:
             self.select_exp.remove(index)
-            self.create_full_table()
+            self.create_full_table(self.combobox_type_table.get())
             self.few_graphik()
             self.create_table_on_frame()
         if not self.select_exp:
@@ -608,10 +623,17 @@ class ViewExperiment(tk.Toplevel):
         self.few_graphik()
 
     def save_button(self, index: int):
+        name_x = self.full_table.columns[0]
         key = self.select_exp[index]
         new_table = self.full_table.iloc[:, [0, index + 1]].dropna()
         s = self.list_experiment[index].s
-        new_table['Время обработки'] = new_table['Величина обработки'] * s
+        if name_x == 'Величина обработки':
+            new_table['Время обработки'] = new_table['Величина обработки'] / s
+
+        else:
+            new_table['Величина обработки'] = new_table['Время обработки'] * s
+
+
         table = new_table[['Величина обработки', 'Время обработки', new_table.columns[1]]].reset_index(drop=True)
         table.columns = self.list_experiment[index].table.columns
 
@@ -623,11 +645,12 @@ class ViewExperiment(tk.Toplevel):
     def add_new_point(self):
         window = AddPoint()
         self.wait_window(window)
+        name_x = self.full_table.columns[0]
         try:
             new_point = [float(window.result)]
             new_point.extend(None for i in range(len(self.select_exp)))
             self.full_table.loc[len(self.full_table)] = new_point
-            self.full_table = self.full_table.sort_values(by='Величина обработки', ascending=True)
+            self.full_table = self.full_table.sort_values(by=name_x, ascending=True)
             self.few_graphik()
             self.create_table_on_frame()
         except AttributeError:
@@ -655,32 +678,42 @@ class ViewExperiment(tk.Toplevel):
     def clear_filter(self, event):
         widget = event.widget
         for widget_children in widget.winfo_children():
-            widget_children.set('')
+            if isinstance(widget_children, ttk.Combobox):
+                widget_children.set('')
 
         self.experiment()
 
     def to_excel(self):
-        excel_dir = os.path.join(self.dir_save, 'excel')
-        os.makedirs(excel_dir, exist_ok=True)
-        excel_file = os.path.join(excel_dir, "experiment.xlsx")
-        name_sheet = tk.simpledialog.askstring(title='Впишите название листа', prompt='Введите название листа')
+        if self.select_exp:
+            excel_dir = os.path.join(self.dir_save, 'excel')
+            os.makedirs(excel_dir, exist_ok=True)
+            excel_file = os.path.join(excel_dir, "experiment.xlsx")
+            name_sheet = tk.simpledialog.askstring(title='Впишите название листа', prompt='Введите название листа')
 
-        if not name_sheet:
-            tk.messagebox.showwarning("Предупреждение", "Имя листа не введено.")
-            return
+            if not name_sheet:
+                tk.messagebox.showwarning("Предупреждение", "Имя листа не введено.")
+                return
 
-        try:
-            if os.path.exists(excel_file):
-                # Если файл существует, добавляем новый лист или заменяем существующий
-                with pd.ExcelWriter(excel_file, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                    self.full_table.to_excel(writer, sheet_name=name_sheet, index=False)
-            else:
-                # Если файла нет, создаем новый
-                with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
-                    self.full_table.to_excel(writer, sheet_name=name_sheet, index=False)
-            tk.messagebox.showinfo("Успех", f"Данные успешно сохранены в лист '{name_sheet}'.")
-        except Exception as e:
-            tk.messagebox.showerror("Ошибка", f"Произошла ошибка при сохранении в Excel: {e}")
+            try:
+                if os.path.exists(excel_file):
+                    # Если файл существует, добавляем новый лист или заменяем существующий
+                    with pd.ExcelWriter(excel_file, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                        self.full_table.to_excel(writer, sheet_name=name_sheet, index=False)
+                else:
+                    # Если файла нет, создаем новый
+                    with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+                        self.full_table.to_excel(writer, sheet_name=name_sheet, index=False)
+                tk.messagebox.showinfo("Успех", f"Данные успешно сохранены в лист '{name_sheet}'.")
+            except Exception as e:
+                tk.messagebox.showerror("Ошибка", f"Произошла ошибка при сохранении в Excel: {e}")
+        else:
+            tk.messagebox.showwarning("Предупреждение", "Нет выбранных экспериментов для сохранения.")
+
+    def to_csv(self):
+        if self.select_exp:
+            csv_dir = os.path.join(self.dir_save, 'csv')
+            os.makedirs(csv_dir, exist_ok=True)
+            csv_file = os.path.join(csv_dir, "experiment.csv")
 
 
 if __name__ == '__main__':

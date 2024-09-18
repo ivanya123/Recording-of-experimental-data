@@ -23,7 +23,7 @@ class Experiment:
 
     def add_point(self, n_step, wear, length_piece):
         length_processing = length_piece * n_step
-        time_processing = length_processing * self.s
+        time_processing = length_processing / self.s
         self.table.loc[len(self.table)] = [length_processing, time_processing, wear]
 
     def save_table(self, path: str) -> bool:
@@ -64,9 +64,9 @@ if __name__ == '__main__':
         b=10,
         length_piece=100
     )
-    experiment.add_point(n_step=4, wear=0.4)
-    experiment.add_point(n_step=8, wear=0.4)
-    experiment.add_point(n_step=16, wear=0.4)
+    experiment.add_point(n_step=4, wear=0.4, length_piece=321)
+    experiment.add_point(n_step=8, wear=0.4, length_piece=321)
+    experiment.add_point(n_step=16, wear=0.4, length_piece=321)
     experiment.change_point(index=2, n_step=8, wear=0.9)
     experiment.delete_point(index=2)
     print(experiment.table)
