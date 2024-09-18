@@ -171,7 +171,7 @@ class NewExperiment(tk.Toplevel):
         self.geometry("1000x500")
         self.title("Запись данных об износе")
         self.count_point = 0
-        self.list_point: list[tuple[tk.Spinbox, tk.Entry]] = []
+        self.list_point: list[tuple[tk.Spinbox, Entry_wear, Entry_wear]] = []
 
         self.material = material
         self.coating = coating
@@ -291,6 +291,7 @@ class NewExperiment(tk.Toplevel):
         key = int(list(data.keys())[-1]) + 1 if list(data.keys()) else 0
         data[str(key)] = self.experiment
         data.close()
+        self.experiment.save_to_csv(self.dir_save)
         self.destroy()
 
     def destroy(self):
@@ -641,6 +642,7 @@ class ViewExperiment(tk.Toplevel):
         data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
         data[str(key)] = self.list_experiment[index]
         data.close()
+        self.list_experiment[index].save_to_csv()
 
     def add_new_point(self):
         window = AddPoint()
