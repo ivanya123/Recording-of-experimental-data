@@ -1,3 +1,4 @@
+import tkinter.simpledialog
 from tkinter import filedialog
 from tkinter import ttk
 from tkinter import messagebox
@@ -7,6 +8,7 @@ from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg)
 import matplotlib.pyplot as plt
 import pandas as pd
+import openpyxl
 
 from data_constant import *
 from function_recording.function import *
@@ -186,7 +188,8 @@ class NewExperiment(tk.Toplevel):
                            f"Режимы резания: {n=}об/мин, {s=} мм/мин")
 
         self.canvas_point = tk.Canvas(self, width=2000, height=130)
-        self.scrollbar = tk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas_point.xview)
+        self.scrollbar = tk.Scrollbar(self, orient=tk.HORIZONTAL, command=self.canvas_point.xview,
+                                      background='lightblue')
         self.canvas_point.pack(padx=5, pady=5)
 
         self.scrollbar.config(command=self.canvas_point.xview)
@@ -325,9 +328,14 @@ class ViewExperiment(tk.Toplevel):
         self.list_experiment: list[Experiment] = []
         self.select_exp: list[int] = []
         self.canvas_graph = None
+        self.filter_material = None
+        self.filter_coating = None
+        self.filter_tool = None
+        self.filter_stage = None
 
-        self.canvas_experiment = tk.Canvas(self, width=400, height=400)
-        self.scrollbar_experiment = tk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas_experiment.yview)
+        self.canvas_experiment = tk.Canvas(self, width=600, height=400)
+        self.scrollbar_experiment = tk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas_experiment.yview,
+                                                 background="lightgrey")
         self.canvas_experiment.grid(row=0, column=1)
         self.scrollbar_experiment.config(command=self.canvas_experiment.yview)
         self.scrollbar_experiment.grid(row=0, column=0, padx=5, pady=5, sticky="ns")
@@ -339,7 +347,6 @@ class ViewExperiment(tk.Toplevel):
 
         self.frame_experiment.bind("<Configure>", on_canvas_configure)
         self.scrollbar_experiment.bind('<MouseWheel>', lambda event: on_mouse_wheel_y(event, self.canvas_experiment))
-        self.experiment()
 
         self.frame_experiment_graph = tk.Frame(self)
         self.frame_experiment_graph.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
@@ -349,11 +356,13 @@ class ViewExperiment(tk.Toplevel):
         self.canvas_full_table.grid(row=1, column=1, padx=5, pady=5, columnspan=2)
         self.scrollbar_full_table = tk.Scrollbar(self,
                                                  orient=tk.HORIZONTAL,
-                                                 command=self.canvas_full_table.xview)
+                                                 command=self.canvas_full_table.xview,
+                                                 background="grey")
         self.scrollbar_full_table.config(command=self.canvas_full_table.xview)
         self.scrollbar_full_table.grid(row=2, column=1, sticky="ew", columnspan=3)
         self.frame_table = tk.Frame(self.canvas_full_table)
         self.canvas_full_table.create_window((0, 0), window=self.frame_table, anchor='nw')
+        self.experiment()
 
         def on_canvas_full_table_configure(event):
             self.canvas_full_table.configure(scrollregion=self.canvas_full_table.bbox("all"))
@@ -363,27 +372,101 @@ class ViewExperiment(tk.Toplevel):
 
         self.scrollbar_full_table_y = tk.Scrollbar(self,
                                                    orient=tk.VERTICAL,
-                                                   command=self.canvas_full_table.yview)
+                                                   command=self.canvas_full_table.yview,
+                                                   background='grey',
+                                                   troughcolor='lightblue')
         self.scrollbar_full_table_y.config(command=self.canvas_full_table.yview)
         self.scrollbar_full_table_y.grid(row=1, column=0, sticky="ns")
         self.scrollbar_full_table_y.bind('<MouseWheel>',
                                          lambda event: on_mouse_wheel_y(event, self.canvas_full_table))
 
     def experiment(self):
-        for widget in self.frame_experiment.winfo_children():
-            widget.destroy()
-        data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
-        for key, value in data.items():
-            text = (f"{key}: {value.material}; {value.coating}; {value.tool}; "
-                    f"{value.n}; {value.s}; {value.a}; {value.b}; {value.length_piece}; {value.stage}")
-            self.label_experiment = tk.Label(self.frame_experiment, text=text)
-            self.label_experiment.pack(padx=5, pady=5)
-            self.label_experiment.index = key
-            self.label_experiment.bind('<Button-1>', self.select_experiment)
-            self.label_experiment.bind('<Button-3>', self.unselect_experiment)
-            self.label_experiment.bind('<Control-ButtonPress-3>', self.delete_experiment)
-            self.list_experiment.append(value)  # type Experiment
-        data.close()
+        if self.filter_material:
+            material = self.filter_material.get()
+            if material == 'Титан':
+                material = 'ВТ'
+            if material == 'Хром-никель':
+                material = 'ХН'
+            coating = self.filter_coating.get()
+            tool = self.filter_tool.get()
+            stage = self.filter_stage.get()
+            for widget in self.frame_experiment.winfo_children():
+                if isinstance(widget, tk.Label):
+                    widget.destroy()
+            data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
+            for key, value in data.items():
+                text = (f"{key}: {value.material}; {value.coating}; {value.tool}; "
+                        f"{value.n}; {value.s}; {value.a}; {value.b}; {value.length_piece}; {value.stage}")
+                if material in text and coating in text and tool in text and stage in text:
+                    self.label_experiment = tk.Label(self.frame_experiment, text=text)
+                    self.label_experiment.pack(padx=5, pady=5, anchor='w')
+                    self.label_experiment.index = key
+                    self.label_experiment.bind('<Button-1>', self.select_experiment)
+                    self.label_experiment.bind('<Button-3>', self.unselect_experiment)
+                    self.label_experiment.bind('<Control-ButtonPress-3>', self.delete_experiment)
+                self.list_experiment.append(value)  # type Experiment
+            data.close()
+        else:
+            data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
+            for key, value in data.items():
+                self.list_experiment.append(value)  # type Experiment
+            data.close()
+            list_material = ['Титан', 'Хром-никель']
+            list_material.extend([experiment.material for experiment in self.list_experiment])
+            self.filter_frame = tk.LabelFrame(self.frame_experiment, text="Выберите тип испытаний")
+            self.filter_frame.pack(padx=5, pady=5, anchor='nw')
+            self.filter_frame.bind('<Button-3>', self.clear_filter)
+            self.filter_material = ttk.Combobox(
+                self.filter_frame,
+                values=list_material
+            )
+            self.filter_material.grid(row=0, column=0, padx=2, pady=2)
+            self.filter_material.bind('<<ComboboxSelected>>', lambda e: self.experiment())
+            self.filter_material.bind('<Return>', lambda e: self.experiment())
+            list_coating = [experiment.coating for experiment in self.list_experiment]
+            self.filter_coating = ttk.Combobox(
+                self.filter_frame,
+                values=list_coating
+            )
+            self.filter_coating.grid(row=0, column=1, padx=2, pady=2)
+            self.filter_coating.bind('<<ComboboxSelected>>', lambda e: self.experiment())
+            self.filter_coating.bind('<Return>', lambda e: self.experiment())
+            list_tool = [experiment.tool for experiment in self.list_experiment]
+            self.filter_tool = ttk.Combobox(
+                self.filter_frame,
+                values=list_tool
+            )
+            self.filter_tool.grid(row=0, column=2, padx=2, pady=2)
+            self.filter_tool.bind('<<ComboboxSelected>>', lambda e: self.experiment())
+            self.filter_tool.bind('<Return>', lambda e: self.experiment())
+            self.filter_stage = ttk.Combobox(
+                self.filter_frame,
+                values=[experiment.stage for experiment in self.list_experiment]
+            )
+            self.filter_stage.grid(row=0, column=3, padx=2, pady=2)
+            self.filter_stage.bind('<<ComboboxSelected>>', lambda e: self.experiment())
+            self.filter_stage.bind('<Return>', lambda e: self.experiment())
+
+            self.button_excel = tk.Button(self.filter_frame, text='Сохранить в Excel',
+                                          command=self.to_excel)
+            self.button_excel.grid(row=1, column=0, columnspan=4, padx=2, pady=2)
+
+            data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
+            for key, value in data.items():
+                text = (f"{key}: {value.material}; {value.coating}; {value.tool}; "
+                        f"{value.n}; {value.s}; {value.a}; {value.b}; {value.length_piece}; {value.stage}")
+                self.label_experiment = tk.Label(self.frame_experiment, text=text)
+                self.label_experiment.pack(padx=5, pady=5, anchor='w')
+                self.label_experiment.index = key
+                self.label_experiment.bind('<Button-1>', self.select_experiment)
+                self.label_experiment.bind('<Button-3>', self.unselect_experiment)
+                self.label_experiment.bind('<Control-ButtonPress-3>', self.delete_experiment)
+                self.list_experiment.append(value)  # type Experiment
+            data.close()
+        self.select_exp.clear()
+        self.create_full_table()
+        self.few_graphik()
+        self.create_table_on_frame()
 
     def create_full_table(self):
 
@@ -421,7 +504,7 @@ class ViewExperiment(tk.Toplevel):
 
         if self.select_exp:
             fig, ax = plt.subplots()
-            fig.set_size_inches(10, 5)
+            fig.set_size_inches(8, 5)
             ax.axhline(y=0.3, color='r', linestyle='-')
 
             for name_column in self.full_table.columns[1:]:
@@ -443,6 +526,10 @@ class ViewExperiment(tk.Toplevel):
             self.canvas_graph.draw()
 
             plt.close(fig)
+        else:
+            if self.canvas_graph:
+                self.canvas_graph.get_tk_widget().destroy()
+                self.canvas_graph = None
 
     def create_table_on_frame(self):
 
@@ -477,6 +564,9 @@ class ViewExperiment(tk.Toplevel):
                         entry.bind('<MouseWheel>', lambda event, step=0.002, ent=entry: plus(event, ent, step,
                                                                                              func=self.change_graphik))
                         entry.bind('<Return>', lambda event, ent=entry: self.change_graphik(event))
+        else:
+            for widget in self.frame_table.winfo_children():
+                widget.destroy()
 
     def select_experiment(self, event: tk.Event):
         widget: tk.Label = event.widget
@@ -502,9 +592,6 @@ class ViewExperiment(tk.Toplevel):
                 self.canvas_graph.get_tk_widget().destroy()
                 for widget in self.frame_table.winfo_children():
                     widget.destroy()
-
-
-
 
     def save_table(self, event: tk.Event):
         entry = event.widget
@@ -544,7 +631,7 @@ class ViewExperiment(tk.Toplevel):
             self.few_graphik()
             self.create_table_on_frame()
         except AttributeError:
-            tkinter.messagebox.showinfo(title='Ошибка', message='Точка не вписана')
+            messagebox.showinfo(title='Ошибка', message='Точка не вписана')
 
     def delete_point(self, event):
         label: tk.Label = event.widget
@@ -565,18 +652,35 @@ class ViewExperiment(tk.Toplevel):
 
         self.experiment()
 
+    def clear_filter(self, event):
+        widget = event.widget
+        for widget_children in widget.winfo_children():
+            widget_children.set('')
 
+        self.experiment()
 
+    def to_excel(self):
+        excel_dir = os.path.join(self.dir_save, 'excel')
+        os.makedirs(excel_dir, exist_ok=True)
+        excel_file = os.path.join(excel_dir, "experiment.xlsx")
+        name_sheet = tk.simpledialog.askstring(title='Впишите название листа', prompt='Введите название листа')
 
+        if not name_sheet:
+            tk.messagebox.showwarning("Предупреждение", "Имя листа не введено.")
+            return
 
-
-
-
-
-
-
-
-
+        try:
+            if os.path.exists(excel_file):
+                # Если файл существует, добавляем новый лист или заменяем существующий
+                with pd.ExcelWriter(excel_file, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                    self.full_table.to_excel(writer, sheet_name=name_sheet, index=False)
+            else:
+                # Если файла нет, создаем новый
+                with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
+                    self.full_table.to_excel(writer, sheet_name=name_sheet, index=False)
+            tk.messagebox.showinfo("Успех", f"Данные успешно сохранены в лист '{name_sheet}'.")
+        except Exception as e:
+            tk.messagebox.showerror("Ошибка", f"Произошла ошибка при сохранении в Excel: {e}")
 
 
 if __name__ == '__main__':
