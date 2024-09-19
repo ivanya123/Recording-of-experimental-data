@@ -63,3 +63,8 @@ def leave(event: str, label: ttk.LabelFrame) -> None:
 def interpolate_data(data_frame):
     """Интерполирует пропущенные значения в DataFrame."""
     return data_frame.interpolate(method='linear', limit_direction='forward', axis=0)
+
+
+def get_coating_from_string(string: str) -> str:
+    """Возвращает название покрытия из строки."""
+    return string.split(';')[1].strip()

@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import openpyxl
 from datetime import datetime
+import mplcursors
 
 from data_constant import *
 from function_recording.function import *
@@ -341,11 +342,12 @@ class ViewExperiment(tk.Toplevel):
         self.filter_coating = None
         self.filter_tool = None
         self.filter_stage = None
+        self.coating_colors: dict[str, str] = get_coating_colors('data_constant.json')
 
-        self.canvas_experiment = tk.Canvas(self, width=600, height=400)
+        self.canvas_experiment = tk.Canvas(self, width=600)
         self.scrollbar_experiment = tk.Scrollbar(self, orient=tk.VERTICAL, command=self.canvas_experiment.yview,
                                                  background="lightgrey")
-        self.canvas_experiment.grid(row=0, column=1, rowspan=2)
+        self.canvas_experiment.grid(row=0, column=1, rowspan=2, sticky='nwse')
         self.scrollbar_experiment.config(command=self.canvas_experiment.yview)
         self.scrollbar_experiment.grid(row=0, column=0, padx=5, pady=5, sticky="ns", rowspan=2)
         self.frame_experiment = tk.Frame(self.canvas_experiment)
@@ -527,26 +529,80 @@ class ViewExperiment(tk.Toplevel):
         if self.select_exp:
             fig, ax = plt.subplots()
             fig.set_size_inches(8, 5)
-            ax.axhline(y=0.3, color='r', linestyle='-')
+
+            # Горизонтальная линия на пороговом значении
+            ax.axhline(y=0.3, color='red', linestyle='--', linewidth=1, label='Пороговое значение (0.3 мм)')
+
             name_x = self.full_table.columns[0]
+
+            # Определение единиц измерения для оси X
+            x_unit = 'мм' if name_x == 'Величина обработки' else 'мин'
+            max_y = 0
+
+            # Предполагается, что у вас уже есть словарь цветов покрытий
+            coating_color_dict = self.coating_colors  # Словарь вида {'Покрытие1': 'цвет1', 'Покрытие2': 'цвет2', ...}
+
+            # Словарь для отслеживания количества серий данных для каждого покрытия
+            coating_series_counts = {}
+
+            # Список доступных стилей линий и маркеров для различения серий одного покрытия
+            line_styles = ['-', '--', '-.', ':']
+            markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h', '+', 'x']
+
+            # Цикл для построения графиков для каждого столбца
             for name_column in self.full_table.columns[1:]:
-                x = self.full_table[self.full_table[name_column].notna()][name_x].tolist()
-                y = self.full_table[self.full_table[name_column].notna()][name_column].tolist()
+                data = self.full_table[[name_x, name_column]].dropna()
+                x = data[name_x].tolist()
+                y = data[name_column].tolist()
+                max_y = max(max_y, max(y))
+
+                # Получение покрытия для текущей серии данных
+                coating = get_coating_from_string(name_column)
+
+                # Получение базового цвета для покрытия
+                base_color = coating_color_dict.get(coating, 'gray')  # Используем серый цвет, если покрытие неизвестно
+
+                # Отслеживание количества серий для данного покрытия
+                series_index = coating_series_counts.get(coating, 0)
+                coating_series_counts[coating] = series_index + 1
+
+                # Выбор стиля линии и маркера для различения серий одного покрытия
+                line_style = line_styles[series_index % len(line_styles)]
+                marker = markers[series_index % len(markers)]
+
+                # Построение графика с определенным цветом, стилем и маркером
                 ax.plot(x, y, label=f'{name_column}',
-                        marker='o')
+                        marker=marker, linestyle=line_style, linewidth=1.5, color=base_color)
 
-            ax.set_xlabel(f"{name_x}, мм" if name_x == 'Величина обработки' else f"{name_x}, мин")
-            ax.set_ylabel('Величина износа, мм')
-            ax.grid()
-            ax.legend()
+            # Установка меток осей
+            ax.set_xlabel(f"{name_x}, {x_unit}", fontsize=8)
+            ax.set_ylabel('Величина износа, мм', fontsize=8)
+            ax.set_title('Зависимость величины износа от величины обработки', fontsize=10)
 
+            # Установка границ для осей
+            ax.set_xlim([0, max(self.full_table[name_x].tolist()) * 1.05])
+            ax.set_ylim([0, max(max_y * 1.1, 0.35)])
+
+            # Добавление сетки и легенды
+            ax.grid(True, which='both', linestyle='--', linewidth=0.3, alpha=0.7)
+            ax.legend(loc='lower right', fontsize='small')
+
+            self.cursor = mplcursors.cursor(ax, hover=True)
+            def on_leave(event):
+                for sel in self.cursor.selections:
+                    sel.annotation.set_visible(False)
+                fig.canvas.draw_idle()
+
+            # Привязываем обработчик события ухода курсора с холста
+            fig.canvas.mpl_connect('figure_leave_event', on_leave)
+
+            # Обновление виджета графика в Tkinter
             if self.canvas_graph:
                 self.canvas_graph.get_tk_widget().destroy()
 
             self.canvas_graph = FigureCanvasTkAgg(fig, master=self.frame_experiment_graph)
             self.canvas_graph.get_tk_widget().pack(padx=5, pady=5)
             self.canvas_graph.draw()
-
             plt.close(fig)
         else:
             if self.canvas_graph:
