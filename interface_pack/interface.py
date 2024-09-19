@@ -9,6 +9,7 @@ from matplotlib.backends.backend_tkagg import (
 import matplotlib.pyplot as plt
 import pandas as pd
 import openpyxl
+from datetime import datetime
 
 from data_constant import *
 from function_recording.function import *
@@ -81,21 +82,22 @@ class Main(tk.Tk):
                                    command=lambda type_='Этап': self.add_type(type_))
         self.stage_add.grid(row=0, column=1, padx=5, pady=5)
 
-        self.frame_section = tk.LabelFrame(self, text="Сечение")
+        self.frame_section = tk.LabelFrame(self, text="Сечение a, b")
         self.frame_section.pack(padx=5, pady=5)
 
-        self.text_a = tk.Entry(self.frame_section)
-        self.text_a.insert(0, '5')
+        self.text_a = Entry_wear(self.frame_section, step_=1, default='5')
+        self.text_a.bind('<MouseWheel>', lambda event, spin=self.text_a: plus(event, spin))
         self.text_a.pack(padx=5, pady=5)
 
-        self.text_b = tk.Entry(self.frame_section)
-        self.text_b.insert(0, '1.5')
+        self.text_b = Entry_wear(self.frame_section, step_=1, default='1.5')
+        self.text_b.bind('<MouseWheel>', lambda event, spin=self.text_b: plus(event, spin))
         self.text_b.pack(padx=5, pady=5)
 
         self.frame_piece = tk.LabelFrame(self, text="Длина заготовки")
         self.frame_piece.pack(padx=5, pady=5)
 
-        self.entry_piece = tk.Entry(self.frame_piece)
+        self.entry_piece = Entry_wear(self.frame_piece, step_=10, default='200')
+        self.entry_piece.bind('<MouseWheel>', lambda event, spin=self.entry_piece: plus(event, spin, step=10))
         self.entry_piece.pack(padx=5, pady=5)
 
         self.frame_processing_modes = tk.LabelFrame(self, text="Режимы обработки")
@@ -105,13 +107,13 @@ class Main(tk.Tk):
         self.spinner_n.delete(0, len(self.spinner_n.get()))
         self.spinner_n.insert(0, '2000')
         self.spinner_n.pack(padx=5, pady=5)
-        self.spinner_n.bind('<MouseWheel>', lambda e, spin=self.spinner_n: plus(e, spin))
+        self.spinner_n.bind('<MouseWheel>', lambda e, spin=self.spinner_n: plus(e, spin, step = 10))
 
         self.spinner_s = tk.Spinbox(self.frame_processing_modes, from_=5, to=400, width=9)
         self.spinner_s.delete(0, len(self.spinner_n.get()))
         self.spinner_s.insert(0, '200')
         self.spinner_s.pack(padx=5, pady=5)
-        self.spinner_s.bind('<MouseWheel>', lambda e, spin=self.spinner_s: plus(e, spin))
+        self.spinner_s.bind('<MouseWheel>', lambda e, spin=self.spinner_s: plus(e, spin, 10))
 
         self.button_new_experiment = tk.Button(self, text="Начать запись нового эксперимента",
                                                command=self.on_click)
@@ -222,10 +224,15 @@ class NewExperiment(tk.Toplevel):
         self.experiment = Experiment(self.material, self.coating, self.tool, self.n, self.s,
                                      self.a, self.b, self.length_piece, self.stage)
 
+        self.bind('<Control-Tab>', lambda e: self.add_point_())
+        self.bind('<Shift-Tab>', lambda e: self.delete_point_(self.list_frame_point[-1]))
+        self.list_frame_point: list[ttk.LabelFrame] = []
+
     def add_point_(self):
         self.frame_point = ttk.LabelFrame(self.inner_frame, text=f"{self.count_point + 1}", width=10,
                                           style='LabelLeave.TLabelframe')
         self.frame_point.grid(row=0, column=self.count_point + 1, padx=5, pady=5)
+        self.list_frame_point.append(self.frame_point)
         self.frame_point.bind("<Enter>", lambda e, lab=self.frame_point: enter(e, lab))
         self.frame_point.bind("<Leave>", lambda e, lab=self.frame_point: leave(e, lab))
         self.frame_point.bind("<Control-ButtonPress-3>", lambda e, lab=self.frame_point: self.delete_point_(lab))
@@ -278,6 +285,7 @@ class NewExperiment(tk.Toplevel):
     def delete_point_(self, frame_point: tk.LabelFrame) -> None:
         frame_point.destroy()
         del self.list_point[frame_point.index]
+        del self.list_frame_point[frame_point.index]
 
         for index, point in enumerate(self.list_point):
             point[0].master.index = index
@@ -431,7 +439,7 @@ class ViewExperiment(tk.Toplevel):
             self.filter_frame.bind('<Button-3>', self.clear_filter)
             self.filter_material = ttk.Combobox(
                 self.filter_frame,
-                values=list_material
+                values=list(set(list_material))
             )
             self.filter_material.grid(row=0, column=0, padx=2, pady=2)
             self.filter_material.bind('<<ComboboxSelected>>', lambda e: self.experiment())
@@ -439,7 +447,7 @@ class ViewExperiment(tk.Toplevel):
             list_coating = [experiment.coating for experiment in self.list_experiment]
             self.filter_coating = ttk.Combobox(
                 self.filter_frame,
-                values=list_coating
+                values=list(set(list_coating))
             )
             self.filter_coating.grid(row=0, column=1, padx=2, pady=2)
             self.filter_coating.bind('<<ComboboxSelected>>', lambda e: self.experiment())
@@ -447,14 +455,14 @@ class ViewExperiment(tk.Toplevel):
             list_tool = [experiment.tool for experiment in self.list_experiment]
             self.filter_tool = ttk.Combobox(
                 self.filter_frame,
-                values=list_tool
+                values=list(set(list_tool))
             )
             self.filter_tool.grid(row=0, column=2, padx=2, pady=2)
             self.filter_tool.bind('<<ComboboxSelected>>', lambda e: self.experiment())
             self.filter_tool.bind('<Return>', lambda e: self.experiment())
             self.filter_stage = ttk.Combobox(
                 self.filter_frame,
-                values=[experiment.stage for experiment in self.list_experiment]
+                values=list(set([experiment.stage for experiment in self.list_experiment]))
             )
             self.filter_stage.grid(row=0, column=3, padx=2, pady=2)
             self.filter_stage.bind('<<ComboboxSelected>>', lambda e: self.experiment())
@@ -499,6 +507,7 @@ class ViewExperiment(tk.Toplevel):
             for index, experiment in enumerate(self.list_experiment):
                 if index != self.select_exp[0] and index in self.select_exp:
                     # Слияние таблиц по колонке 'Величина обработки'
+                    key = index
                     experiment_data = experiment.table[[name_x, 'Величина износа']]
                     new_experiment_name = (f'{key}: {experiment.material}; {experiment.coating}; {experiment.tool};\n'
                                            f'{experiment.n}; {experiment.s}; {experiment.length_piece}; ')
@@ -627,22 +636,20 @@ class ViewExperiment(tk.Toplevel):
         name_x = self.full_table.columns[0]
         key = self.select_exp[index]
         new_table = self.full_table.iloc[:, [0, index + 1]].dropna()
-        s = self.list_experiment[index].s
+        s = self.list_experiment[key].s
         if name_x == 'Величина обработки':
             new_table['Время обработки'] = new_table['Величина обработки'] / s
 
         else:
             new_table['Величина обработки'] = new_table['Время обработки'] * s
 
-
         table = new_table[['Величина обработки', 'Время обработки', new_table.columns[1]]].reset_index(drop=True)
-        table.columns = self.list_experiment[index].table.columns
-
+        table.columns = self.list_experiment[key].table.columns
         self.list_experiment[key].table = table
         data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
-        data[str(key)] = self.list_experiment[index]
+        data[str(key)] = self.list_experiment[key]
         data.close()
-        self.list_experiment[index].save_to_csv()
+        self.list_experiment[key].save_to_csv()
 
     def add_new_point(self):
         window = AddPoint()
@@ -691,6 +698,8 @@ class ViewExperiment(tk.Toplevel):
             os.makedirs(excel_dir, exist_ok=True)
             excel_file = os.path.join(excel_dir, "experiment.xlsx")
             name_sheet = tk.simpledialog.askstring(title='Впишите название листа', prompt='Введите название листа')
+            date = datetime.now().strftime("%d.%m.%Y %H.%M")
+            name_sheet = f'{name_sheet}_{date}'
 
             if not name_sheet:
                 tk.messagebox.showwarning("Предупреждение", "Имя листа не введено.")
@@ -701,10 +710,47 @@ class ViewExperiment(tk.Toplevel):
                     # Если файл существует, добавляем новый лист или заменяем существующий
                     with pd.ExcelWriter(excel_file, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
                         self.full_table.to_excel(writer, sheet_name=name_sheet, index=False)
+
+                        # Получаем доступ к книге и листу
+                        workbook = writer.book
+                        worksheet = writer.sheets[name_sheet]
+
+                        # Устанавливаем ширину столбцов
+                        for column_cells in worksheet.columns:
+                            max_length = 0
+                            column = column_cells[0].column_letter
+                            for cell in column_cells:
+                                try:
+                                    cell_length = len(str(cell.value))
+                                    if cell_length > max_length:
+                                        max_length = cell_length
+                                except:
+                                    pass
+                            adjusted_width = (max_length + 2)
+                            worksheet.column_dimensions[column].width = adjusted_width
                 else:
                     # Если файла нет, создаем новый
                     with pd.ExcelWriter(excel_file, engine='openpyxl') as writer:
                         self.full_table.to_excel(writer, sheet_name=name_sheet, index=False)
+
+                        # Получаем доступ к книге и листу
+                        workbook = writer.book
+                        worksheet = writer.sheets[name_sheet]
+
+                        # Устанавливаем ширину столбцов
+                        for column_cells in worksheet.columns:
+                            max_length = 0
+                            column = column_cells[0].column_letter
+                            for cell in column_cells:
+                                try:
+                                    cell_length = len(str(cell.value))
+                                    if cell_length > max_length:
+                                        max_length = cell_length
+                                except:
+                                    pass
+                            adjusted_width = (max_length + 2)
+                            worksheet.column_dimensions[column].width = adjusted_width
+
                 tk.messagebox.showinfo("Успех", f"Данные успешно сохранены в лист '{name_sheet}'.")
             except Exception as e:
                 tk.messagebox.showerror("Ошибка", f"Произошла ошибка при сохранении в Excel: {e}")
