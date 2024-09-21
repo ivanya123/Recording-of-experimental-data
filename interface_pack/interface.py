@@ -20,6 +20,16 @@ from interface_pack.window_add_point import AddPoint
 
 
 def first_start():
+    """
+    Проверяет наличие файла конфигурации 'config.json' и загружает пути из него.
+
+    Если файл конфигурации отсутствует, запрашивает у пользователя выбор файла констант и папки для сохранения данных,
+    сохраняет эти пути в 'config.json' для последующего использования.
+
+    :return: Кортеж из двух элементов:
+        - Путь к файлу констант.
+        - Путь к папке для сохранения данных.
+    """
     if os.path.exists('config.json'):
         with open('config.json', 'r') as f:
             file_path = json.load(f)
@@ -33,8 +43,23 @@ def first_start():
 
 
 class Main(tk.Tk):
+    """
+    Главный класс приложения, наследующий от tk.Tk.
+
+    Создает интерфейс для записи данных об износе, позволяет выбирать материалы, покрытия,
+    инструменты и этапы, а также вводить параметры эксперимента.
+
+    Методы:
+        - __init__: Инициализирует интерфейс приложения.
+        - on_click: Обрабатывает событие нажатия кнопки для начала нового эксперимента.
+        - view_button: Открывает окно для просмотра сохраненных экспериментов.
+        - add_type: Открывает окно для добавления нового материала, покрытия, инструмента или этапа.
+    """
 
     def __init__(self):
+        """
+        Инициализирует главное окно приложения, создает все необходимые виджеты и элементы управления.
+        """
         super().__init__()
 
         self.title("Запись данных об износе")
@@ -125,6 +150,12 @@ class Main(tk.Tk):
         self.entry_piece.focus()
 
     def on_click(self):
+        """
+        Обрабатывает нажатие кнопки "Начать запись нового эксперимента".
+
+        Собирает введенные пользователем данные, проверяет их корректность
+        и открывает окно для записи нового эксперимента.
+        """
         material = self.listbox_material.get()
         coating = self.listbox_coating.get()
         tool = self.listbox_tool.get()
@@ -143,17 +174,34 @@ class Main(tk.Tk):
             messagebox.showerror("Ошибка", "Введите корректные данные")
 
     def view_button(self):
+        """
+        Обрабатывает нажатие кнопки "Просмотр экспериментов".
+
+        Открывает окно для просмотра и анализа ранее сохраненных экспериментов.
+        """
         window = ViewExperiment(self.dir_save)
         self.wait_window(window)
         window.mainloop()
 
     def add_type(self, type_):
+        """
+        Открывает окно для добавления нового материала, покрытия, инструмента или этапа.
+
+        :param type_: Тип добавляемого элемента ('Материал', 'Покрытие', 'Инструмент' или 'Этап').
+        """
         add_window = AddConstant(type_, self.file_data)
         add_window.grab_set()
 
 
 class NewExperiment(tk.Toplevel):
+    """
+    Класс для создания окна записи нового эксперимента по износу.
 
+    Позволяет пользователю вводить данные эксперимента, добавлять точки измерений,
+    отображать график износа и сохранять результаты.
+
+    Наследует от tk.Toplevel для создания отдельного окна поверх главного приложения.
+    """
     def __init__(self,
                  material: str,
                  coating: str,
@@ -165,6 +213,20 @@ class NewExperiment(tk.Toplevel):
                  s: float,
                  dir_save: str,
                  stage: str):
+        """
+        Инициализирует окно нового эксперимента с заданными параметрами.
+
+        :param material: Материал заготовки.
+        :param coating: Покрытие инструмента.
+        :param tool: Тип инструмента.
+        :param length_piece: Длина заготовки в мм.
+        :param a: Размер сечения a в мм.
+        :param b: Размер сечения b в мм.
+        :param n: Обороты шпинделя (n) в об/мин.
+        :param s: Подача (s) в мм/мин.
+        :param dir_save: Директория для сохранения данных эксперимента.
+        :param stage: Этап эксперимента.
+        """
         super().__init__()
         self.style = ttk.Style(self)
         self.style.configure("LabelLeave.TLabelframe", background="SystemButtonFace")
@@ -230,6 +292,12 @@ class NewExperiment(tk.Toplevel):
         self.list_frame_point: list[ttk.LabelFrame] = []
 
     def add_point_(self):
+        """
+        Добавляет новую точку измерений в эксперимент.
+
+        Создает новый LabelFrame с полями ввода для номера шага, величины износа и длины заготовки.
+        Обновляет график после добавления точки.
+        """
         self.frame_point = ttk.LabelFrame(self.inner_frame, text=f"{self.count_point + 1}", width=10,
                                           style='LabelLeave.TLabelframe')
         self.frame_point.grid(row=0, column=self.count_point + 1, padx=5, pady=5)
@@ -268,6 +336,12 @@ class NewExperiment(tk.Toplevel):
         self.count_point += 1
 
     def graphik(self, event=None):
+        """
+        Обновляет график износа на основе текущих точек измерений.
+
+        Очищает предыдущие данные, добавляет новые точки из списка list_point
+        и отображает график в окне.
+        """
         self.experiment.table = self.experiment.table.drop(index=list(range(self.count_point + 1)))
         self.experiment.table.loc[0] = [0, 0, 0]
         for point in self.list_point:
@@ -284,6 +358,11 @@ class NewExperiment(tk.Toplevel):
         plt.close()
 
     def delete_point_(self, frame_point: tk.LabelFrame) -> None:
+        """
+        Удаляет выбранную точку измерений из эксперимента.
+
+        :param frame_point: Виджет LabelFrame, соответствующий удаляемой точке.
+        """
         frame_point.destroy()
         del self.list_point[frame_point.index]
         del self.list_frame_point[frame_point.index]
@@ -296,6 +375,9 @@ class NewExperiment(tk.Toplevel):
         self.count_point -= 1
 
     def save_experiment(self):
+        """
+        Сохраняет данные эксперимента в базу данных и CSV-файл, затем закрывает окно.
+        """
         data = shelve.open(os.path.join(self.dir_save, "experiment.db"))
         key = int(list(data.keys())[-1]) + 1 if list(data.keys()) else 0
         data[str(key)] = self.experiment
@@ -304,13 +386,29 @@ class NewExperiment(tk.Toplevel):
         self.destroy()
 
     def destroy(self):
+        """
+        Переопределяет метод destroy для корректного удаления графика перед закрытием окна.
+        """
         if self.canvas_graph:
             self.canvas_graph.get_tk_widget().destroy()
         super().destroy()
 
 
 class Spinner(tk.Spinbox):
+    """
+    Класс-наследник tk.Spinbox для ввода числовых значений с дополнительной функциональностью.
+
+    Добавляет возможность изменять значение с помощью колесика мыши и обновлять график при изменении.
+    """
     def __init__(self, master=None, step_: int | float = 1, default: str = "4", **kwargs):
+        """
+        Инициализирует Spinner с заданными параметрами.
+
+        :param master: Родительский виджет.
+        :param step_: Шаг изменения значения при прокрутке колесика мыши.
+        :param default: Значение по умолчанию.
+        :param kwargs: Дополнительные аргументы для tk.Spinbox.
+        """
         super().__init__(master, **kwargs)
         self.bind('<MouseWheel>', lambda event, step=step_: plus(event,
                                                                  self,
@@ -319,8 +417,21 @@ class Spinner(tk.Spinbox):
 
 
 class Entry_wear(tk.Entry):
+    """
+    Класс-наследник tk.Entry для ввода числовых значений с дополнительной функциональностью.
+
+    Добавляет возможность изменять значение с помощью колесика мыши и обновлять график при изменении.
+    """
 
     def __init__(self, master=None, step_: int | float = 1, default='0.05', **kwargs):
+        """
+        Инициализирует Entry_wear с заданными параметрами.
+
+        :param master: Родительский виджет.
+        :param step_: Шаг изменения значения при прокрутке колесика мыши.
+        :param default: Значение по умолчанию.
+        :param kwargs: Дополнительные аргументы для tk.Entry.
+        """
         super().__init__(master, **kwargs)
         self.bind('<MouseWheel>',
                   lambda event, step=step_: plus(event, self, step,
@@ -329,6 +440,14 @@ class Entry_wear(tk.Entry):
 
 
 class ViewExperiment(tk.Toplevel):
+    """
+    Класс для отображения и управления данными экспериментов по износу.
+
+    Позволяет просматривать, фильтровать, добавлять и удалять эксперименты, а также
+    строить графики и сохранять данные в формате Excel и CSV.
+
+    Наследует от tk.Toplevel для создания отдельного окна поверх главного приложения.
+    """
     def __init__(self, dir_save: str):
         super().__init__()
         self.geometry("1500x700")
@@ -404,6 +523,9 @@ class ViewExperiment(tk.Toplevel):
                                          lambda event: on_mouse_wheel_y(event, self.canvas_full_table))
 
     def experiment(self):
+        """
+        Загружает и отображает список экспериментов с возможностью фильтрации по параметрам.
+        """
         if self.filter_material:
             material = self.filter_material.get()
             if material == 'Титан':
@@ -492,6 +614,11 @@ class ViewExperiment(tk.Toplevel):
         # self.create_table_on_frame()
 
     def create_full_table(self, type_x):
+        """
+        Создает объединенную таблицу для выбранных экспериментов.
+
+        :param type_x: Тип объединения таблицы - 'Путь' или 'Время обработки'.
+        """
         name_x = 'Величина обработки' if type_x == 'Путь' else 'Время обработки'
 
         if self.select_exp:
@@ -526,6 +653,9 @@ class ViewExperiment(tk.Toplevel):
             self.full_table = None
 
     def few_graphik(self):
+        """
+        Строит график для выбранных экспериментов.
+        """
         if self.select_exp:
             fig, ax = plt.subplots()
             fig.set_size_inches(8, 5)
@@ -624,6 +754,9 @@ class ViewExperiment(tk.Toplevel):
                 self.canvas_graph = None
 
     def create_table_on_frame(self):
+        """
+        Создает таблицу на фрейме для выбранных экспериментов.
+        """
         if self.select_exp:
             name_x = self.full_table.columns[0]
             for widget in self.frame_table.winfo_children():
@@ -664,6 +797,11 @@ class ViewExperiment(tk.Toplevel):
                 widget.destroy()
 
     def select_experiment(self, event: tk.Event):
+        """
+        Выбирает эксперимент из списка для отображения на графике и в таблице.
+
+        :param event: Событие выбора эксперимента.
+        """
         widget: tk.Label = event.widget
         widget.configure(background='lightblue')
         index = int(widget.index)
@@ -674,6 +812,11 @@ class ViewExperiment(tk.Toplevel):
             self.create_table_on_frame()
 
     def unselect_experiment(self, event: tk.Event):
+        """
+        Снимает выделение с эксперимента и удаляет его из отображения на графике и в таблице.
+
+        :param event: Событие снятия выбора эксперимента.
+        """
         widget: tk.Label = event.widget
         widget.configure(background='SystemButtonFace')
         index = int(widget.index)
@@ -689,6 +832,11 @@ class ViewExperiment(tk.Toplevel):
                     widget.destroy()
 
     def save_table(self, event: tk.Event):
+        """
+        Сохраняет изменения в таблице данных после ввода.
+
+        :param event: Событие ввода новых данных в таблицу.
+        """
         entry = event.widget
         column = entry.grid_info()['column']
         row = entry.grid_info()['row']
@@ -696,6 +844,11 @@ class ViewExperiment(tk.Toplevel):
         self.few_graphik()
 
     def change_graphik(self, event):
+        """
+        Обновляет график после изменения данных в таблице.
+
+        :param event: Событие изменения данных в таблице.
+        """
         entry = event.widget
         column = entry.grid_info()['column']
         row = entry.grid_info()['row']
@@ -703,6 +856,11 @@ class ViewExperiment(tk.Toplevel):
         self.few_graphik()
 
     def save_button(self, index: int):
+        """
+        Сохраняет изменения в эксперименте после редактирования таблицы.
+
+        :param index: Индекс эксперимента в списке выбранных экспериментов.
+        """
         name_x = self.full_table.columns[0]
         key = self.select_exp[index]
         new_table = self.full_table.iloc[:, [0, index + 1]].dropna()
@@ -722,6 +880,9 @@ class ViewExperiment(tk.Toplevel):
         self.list_experiment[key].save_to_csv()
 
     def add_new_point(self):
+        """
+        Добавляет новую точку в таблицу эксперимента.
+        """
         window = AddPoint()
         self.wait_window(window)
         name_x = self.full_table.columns[0]
@@ -736,6 +897,11 @@ class ViewExperiment(tk.Toplevel):
             messagebox.showinfo(title='Ошибка', message='Точка не вписана')
 
     def delete_point(self, event):
+        """
+        Удаляет выбранную точку из таблицы эксперимента.
+
+        :param event: Событие удаления точки.
+        """
         label: tk.Label = event.widget
         num_record = label.grid_info()['column'] - 1
         self.full_table = self.full_table.drop(self.full_table.index[num_record])
@@ -743,6 +909,11 @@ class ViewExperiment(tk.Toplevel):
         self.create_table_on_frame()
 
     def delete_experiment(self, event):
+        """
+        Удаляет эксперимент из базы данных.
+
+        :param event: Событие удаления эксперимента.
+        """
         widget: tk.Label = event.widget
         index = int(widget.index)
         if index in self.select_exp:
@@ -755,6 +926,11 @@ class ViewExperiment(tk.Toplevel):
         self.experiment()
 
     def clear_filter(self, event):
+        """
+        Очищает установленные фильтры.
+
+        :param event: Событие очистки фильтров.
+        """
         widget = event.widget
         for widget_children in widget.winfo_children():
             if isinstance(widget_children, ttk.Combobox):
@@ -764,6 +940,9 @@ class ViewExperiment(tk.Toplevel):
         self.create_table_on_frame()
 
     def to_excel(self):
+        """
+        Сохраняет выбранные эксперименты в Excel.
+        """
         if self.select_exp:
             excel_dir = os.path.join(self.dir_save, 'excel')
             os.makedirs(excel_dir, exist_ok=True)
@@ -827,13 +1006,6 @@ class ViewExperiment(tk.Toplevel):
                 tk.messagebox.showerror("Ошибка", f"Произошла ошибка при сохранении в Excel: {e}")
         else:
             tk.messagebox.showwarning("Предупреждение", "Нет выбранных экспериментов для сохранения.")
-
-    def to_csv(self):
-        if self.select_exp:
-            csv_dir = os.path.join(self.dir_save, 'csv')
-            os.makedirs(csv_dir, exist_ok=True)
-            csv_file = os.path.join(csv_dir, "experiment.csv")
-
 
 if __name__ == '__main__':
     app = Main()
