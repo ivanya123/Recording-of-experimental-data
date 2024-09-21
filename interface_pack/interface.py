@@ -108,7 +108,7 @@ class Main(tk.Tk):
         self.spinner_n.delete(0, len(self.spinner_n.get()))
         self.spinner_n.insert(0, '2000')
         self.spinner_n.pack(padx=5, pady=5)
-        self.spinner_n.bind('<MouseWheel>', lambda e, spin=self.spinner_n: plus(e, spin, step = 10))
+        self.spinner_n.bind('<MouseWheel>', lambda e, spin=self.spinner_n: plus(e, spin, step=10))
 
         self.spinner_s = tk.Spinbox(self.frame_processing_modes, from_=5, to=400, width=9)
         self.spinner_s.delete(0, len(self.spinner_n.get()))
@@ -574,6 +574,19 @@ class ViewExperiment(tk.Toplevel):
                 ax.plot(x, y, label=f'{name_column}',
                         marker=marker, linestyle=line_style, linewidth=1.5, color=base_color)
 
+            for index in self.select_exp:
+                if name_x == 'Величина обработки':
+                    ax.axvline(x=self.list_experiment[index].L)
+                else:
+                    ax.axvline(x=self.list_experiment[index].T)
+
+            # Установка меток осей
+            ax.set_xlabel(f"{name_x}, {x_unit}", fontsize=8)
+            ax.set_ylabel('Величина износа, мм', fontsize=8)
+            ax.set_title('Зависимость величины износа от времени обработки', fontsize=10)
+
+            # Установка границ для осей
+
             # Установка меток осей
             ax.set_xlabel(f"{name_x}, {x_unit}", fontsize=8)
             ax.set_ylabel('Величина износа, мм', fontsize=8)
@@ -585,9 +598,10 @@ class ViewExperiment(tk.Toplevel):
 
             # Добавление сетки и легенды
             ax.grid(True, which='both', linestyle='--', linewidth=0.3, alpha=0.7)
-            ax.legend(loc='lower right', fontsize='small')
+            ax.legend(loc='upper left', fontsize='small')
 
             self.cursor = mplcursors.cursor(ax, hover=True)
+
             def on_leave(event):
                 for sel in self.cursor.selections:
                     sel.annotation.set_visible(False)
@@ -747,6 +761,7 @@ class ViewExperiment(tk.Toplevel):
                 widget_children.set('')
 
         self.experiment()
+        self.create_table_on_frame()
 
     def to_excel(self):
         if self.select_exp:

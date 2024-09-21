@@ -1,11 +1,26 @@
+import shelve
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import csv
 
-class Experiment:
 
+class Experiment:
+    """
+    Инициализирует новый эксперимент с заданными параметрами.
+
+    :param material: Материал заготовки.
+    :param coating: Покрытие инструмента.
+    :param tool: Тип инструмента.
+    :param n: Обороты шпинделя (n).
+    :param s: Подача (s) в мм/мин.
+    :param a: Размер сечения a в мм.
+    :param b: Размер сечения b в мм.
+    :param length_piece: Длина заготовки в мм.
+    :param stage: Этап эксперимента.
+    """
     def __init__(self, material, coating, tool, n, s, a, b, length_piece, stage):
         self.material = material
         self.coating = coating
@@ -23,15 +38,26 @@ class Experiment:
         )
 
     def add_point(self, n_step, wear, length_piece):
+        """
+        Добавляет новую точку данных в таблицу эксперимента.
+
+        :param n_step: Номер шага или количество проходов.
+        :param wear: Величина износа инструмента на данном шаге (в мм).
+        :param length_piece: Длина заготовки для данного шага (в мм).
+        """
         length_processing = length_piece * n_step
         time_processing = length_processing / self.s
         self.table.loc[len(self.table)] = [length_processing, time_processing, wear]
 
     def save_to_csv(self, base_dir='data'):
         """
-        Сохраняет таблицу эксперимента в CSV-файл по заданному пути.
-        Имя файла включает информацию о оборотах шпинделя (n) и подаче (s).
-        Первые строки файла содержат информацию об эксперименте (все атрибуты класса без таблицы).
+        Сохраняет данные эксперимента в CSV-файл.
+
+        Файл будет содержать информацию об эксперименте и таблицу данных.
+        Имя файла формируется на основе оборотов шпинделя (n) и подачи (s).
+        Файл сохраняется в директорию, сформированную на основе атрибутов эксперимента.
+
+        :param base_dir: Базовая директория для сохранения данных. По умолчанию 'data'.
         """
         # Формируем путь к директории на основе атрибутов эксперимента
         dir_path = os.path.join(
@@ -85,9 +111,12 @@ class Experiment:
         except Exception as e:
             print(f"Ошибка при сохранении данных: {e}")
 
-
-
     def graphik(self):
+        """
+        Строит график зависимости величины износа от величины обработки.
+
+        :return: Кортеж (fig, ax), где fig — объект Figure, ax — объект Axes.
+        """
         x = self.table["Величина обработки"]
         y = self.table["Величина износа"]
         fig, ax = plt.subplots()
@@ -101,23 +130,39 @@ class Experiment:
         ax.set_ylabel("Величина износа")
         return fig, ax
 
+    @property
+    def L(self):
+        """
+        Вычисляет величину обработки L, при которой величина износа достигает 0.3 мм.
+
+        Если величина износа в последней точке превышает 0.3 мм, выполняется линейная интерполяция между
+        последними двумя точками для определения точного значения L при износе 0.3 мм.
+
+        :return: Величина обработки L при износе 0.3 мм. Если износ меньше 0.3 мм, возвращает None.
+        """
+        if self.table["Величина износа"].iloc[-1] > 0.3:
+            x0, y0 = self.table["Величина обработки"].iloc[-2], self.table["Величина износа"].iloc[-2]
+            x1, y1 = self.table["Величина обработки"].iloc[-1], self.table["Величина износа"].iloc[-1]
+            y2 = 0.3
+            x2 = x0 + (x1 - x0) * (y2 - y0) / (y1 - y0)
+            return x2
+        else:
+            return None
+
+    @property
+    def T(self):
+        """
+        Вычисляет время обработки T, при котором величина износа достигает 0.3 мм.
+
+        :return: Время обработки T при износе 0.3 мм. Если износ меньше 0.3 мм, возвращает None.
+        """
+        return self.L / self.s
+
 
 if __name__ == '__main__':
-    experiment = Experiment(
-        material="Сталь",
-        coating="Никель",
-        tool="Кулачковый",
-        n=100,
-        s=10,
-        a=10,
-        b=10,
-        length_piece=100,
-        stage=1
-    )
-    experiment.add_point(n_step=4, wear=0.4, length_piece=321)
-    experiment.add_point(n_step=8, wear=0.4, length_piece=321)
-    experiment.add_point(n_step=16, wear=0.4, length_piece=321)
+    data = shelve.open(r'C:\Users\aples\PycharmProjects\Recording-of-experimental-data\data\experiment.db')
 
-    print(experiment.table)
-    experiment.graphik()
+    print(data['1'].T)
+    print(data['1'].L)
+    data['1'].graphik()
     plt.show()
