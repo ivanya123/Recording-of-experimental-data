@@ -140,9 +140,12 @@ class Experiment:
 
         :return: Величина обработки L при износе 0.3 мм. Если износ меньше 0.3 мм, возвращает None.
         """
-        if self.table["Величина износа"].iloc[-1] > 0.3:
-            x0, y0 = self.table["Величина обработки"].iloc[-2], self.table["Величина износа"].iloc[-2]
-            x1, y1 = self.table["Величина обработки"].iloc[-1], self.table["Величина износа"].iloc[-1]
+        if self.table["Величина износа"].iloc[-1] >= 0.3:
+            data = self.table[['Величина обработки', 'Величина износа']]
+            y1 = data[data[data.columns[1]] > 0.3].iloc[0,1]
+            x1 = data[data[data.columns[1]] > 0.3].iloc[0,0]
+            index = data[data[data.columns[1]] > 0.3].index[0]
+            x0, y0 = self.table["Величина обработки"].iloc[index-1], self.table["Величина износа"].iloc[index-1]
             y2 = 0.3
             x2 = x0 + (x1 - x0) * (y2 - y0) / (y1 - y0)
             return x2

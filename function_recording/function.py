@@ -1,5 +1,6 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+import pandas as pd
 
 
 def check_float(string: str):
@@ -74,7 +75,6 @@ def on_mouse_wheel_y(event, canvas):
         canvas.yview_scroll(-1 * int(event.delta / 120), "units")
 
 
-
 def enter(event: str, label: ttk.LabelFrame) -> None:
     """
    Изменяет стиль LabelFrame при наведении курсора мыши.
@@ -85,7 +85,6 @@ def enter(event: str, label: ttk.LabelFrame) -> None:
    :param label: Виджет LabelFrame, стиль которого нужно изменить.
    """
     label.config(style='LabelEnter.TLabelframe')
-
 
 
 def leave(event: str, label: ttk.LabelFrame) -> None:
@@ -122,3 +121,53 @@ def get_coating_from_string(string: str) -> str:
     :return: Название покрытия, извлеченное из строки.
     """
     return string.split(';')[1].strip()
+
+
+class cache_decor:
+
+    def __init__(self, func):
+        self.func = func
+        self.param = {}
+
+    def __call__(self, dataframe):
+        key = (dataframe.columns[0], dataframe.columns[1])
+        if key in self.param:
+            return self.param[key]
+        else:
+            result = self.func(dataframe)
+            self.param[key] = result
+            return result
+
+    def clear_cache(self, dataframe: pd.DataFrame):
+        key = (dataframe.columns[0], dataframe.columns[1])
+        self.param.pop(key, None)
+
+
+
+
+@cache_decor
+def get_durability_from_dataframe(dataframe: pd.DataFrame) -> float | None:
+    """
+    Вычисляет величину обработки L, при которой величина износа достигает 0.3 мм.
+
+    Если величина износа в последней точке превышает 0.3 мм, выполняется линейная интерполяция между
+    последними двумя точками для определения точного значения L при износе 0.3 мм.
+
+    :return: Величина обработки L при износе 0.3 мм. Если износ меньше 0.3 мм, возвращает None.
+    """
+    if dataframe[dataframe.columns[1]].iloc[-1] >= 0.3:
+        y1 = dataframe[dataframe[dataframe.columns[1]] > 0.3].iloc[0, 1]
+        x1 = dataframe[dataframe[dataframe.columns[1]] > 0.3].iloc[0, 0]
+        index = dataframe[dataframe[dataframe.columns[1]] > 0.3].index[0]
+        x0, y0 = dataframe[dataframe.columns[0]].iloc[index - 1], dataframe[dataframe.columns[1]].iloc[index - 1]
+        y2 = 0.3
+        x2 = x0 + (x1 - x0) * (y2 - y0) / (y1 - y0)
+
+        return x2
+    else:
+        return None
+
+
+def delete_cache(dataframe: pd.DataFrame):
+    key = (dataframe.columns[0], dataframe.columns[1])
+    get_durability_from_dataframe.param.pop(key, None)

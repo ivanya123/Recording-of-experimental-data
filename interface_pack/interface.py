@@ -202,6 +202,7 @@ class NewExperiment(tk.Toplevel):
 
     Наследует от tk.Toplevel для создания отдельного окна поверх главного приложения.
     """
+
     def __init__(self,
                  material: str,
                  coating: str,
@@ -400,6 +401,7 @@ class Spinner(tk.Spinbox):
 
     Добавляет возможность изменять значение с помощью колесика мыши и обновлять график при изменении.
     """
+
     def __init__(self, master=None, step_: int | float = 1, default: str = "4", **kwargs):
         """
         Инициализирует Spinner с заданными параметрами.
@@ -448,6 +450,7 @@ class ViewExperiment(tk.Toplevel):
 
     Наследует от tk.Toplevel для создания отдельного окна поверх главного приложения.
     """
+
     def __init__(self, dir_save: str):
         super().__init__()
         self.geometry("1500x700")
@@ -681,7 +684,7 @@ class ViewExperiment(tk.Toplevel):
 
             # Цикл для построения графиков для каждого столбца
             for name_column in self.full_table.columns[1:]:
-                data = self.full_table[[name_x, name_column]].dropna()
+                data = self.full_table[[name_x, name_column]].dropna().reset_index(drop=True)
                 x = data[name_x].tolist()
                 y = data[name_column].tolist()
                 max_y = max(max_y, max(y))
@@ -704,11 +707,12 @@ class ViewExperiment(tk.Toplevel):
                 ax.plot(x, y, label=f'{name_column}',
                         marker=marker, linestyle=line_style, linewidth=1.5, color=base_color)
 
-            for index in self.select_exp:
-                if name_x == 'Величина обработки':
-                    ax.axvline(x=self.list_experiment[index].L)
-                else:
-                    ax.axvline(x=self.list_experiment[index].T)
+                length_or_durability = get_durability_from_dataframe(data)
+                if length_or_durability:
+                    ax.axvline(x=round(length_or_durability, 1), alpha=0.5)
+                    ax.text(length_or_durability, 0, f'{round(length_or_durability, 1)}, {x_unit}', fontsize=8, ha='right',
+                            va='bottom')
+
 
             # Установка меток осей
             ax.set_xlabel(f"{name_x}, {x_unit}", fontsize=8)
@@ -853,6 +857,8 @@ class ViewExperiment(tk.Toplevel):
         column = entry.grid_info()['column']
         row = entry.grid_info()['row']
         self.full_table.iloc[column - 1, row] = float(entry.get())
+        dataframe = self.full_table[[self.full_table.columns[0], self.full_table.columns[row]]]
+        get_durability_from_dataframe.clear_cache(dataframe)
         self.few_graphik()
 
     def save_button(self, index: int):
@@ -1006,6 +1012,7 @@ class ViewExperiment(tk.Toplevel):
                 tk.messagebox.showerror("Ошибка", f"Произошла ошибка при сохранении в Excel: {e}")
         else:
             tk.messagebox.showwarning("Предупреждение", "Нет выбранных экспериментов для сохранения.")
+
 
 if __name__ == '__main__':
     app = Main()
